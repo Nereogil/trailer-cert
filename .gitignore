@@ -10,3 +10,8 @@ Thumbs.db
 
 # Real job data, photos and certificates stay local
 samples/
+
+# API keys belong in the app, never in the repo
+api.txt
+*.key
+*api*key*

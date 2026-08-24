@@ -25,7 +25,7 @@ const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 const EXTRA_PART = '<?xml version="1.0" encoding="UTF-8"?><webextension xmlns="http://example.invalid/we" id="stand-in"/>';
 
 const STRINGS = [
-  'Campervans Breathtrailers', 'Vin', 'Power', 'Battery', 'Date', 'Ecert',
+  'Trailer register', 'Vin', 'Power', 'Battery', 'Date', 'Ecert',
   'R33PD1344TA900010', 'R33PD134XTA900013', 'R33PD1348TA900012',
   '2000W', 'Y', 'y',
   'Existing 6 Poles switchboard ', 'Contact name placeholder',
@@ -34,7 +34,7 @@ const STRINGS = [
 const s = (v) => STRINGS.indexOf(v);
 
 const SHEET = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:N6"/><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><sheetData><row r="1"><c r="A1" t="s"><v>${s('Campervans Breathtrailers')}</v></c></row><row r="2"><c r="A2" t="s"><v>${s('Vin')}</v></c><c r="B2" t="s"><v>${s('Power')}</v></c><c r="C2" t="s"><v>${s('Battery')}</v></c><c r="D2" t="s"><v>${s('Date')}</v></c><c r="E2" t="s"><v>${s('Ecert')}</v></c></row><row r="3"><c r="A3" t="s"><v>${s('R33PD1344TA900010')}</v></c><c r="D3" s="1"><v>46224</v></c><c r="E3" t="s"><v>${s('Y')}</v></c></row><row r="4"><c r="A4" t="s"><v>${s('R33PD134XTA900013')}</v></c><c r="D4" s="1"><v>46224</v></c><c r="E4" t="s"><v>${s('Y')}</v></c></row><row r="5"><c r="A5" t="s"><v>${s('R33PD1348TA900012')}</v></c><c r="B5" t="s"><v>${s('2000W')}</v></c><c r="C5"><v>200</v></c><c r="D5" s="1"><v>46225</v></c><c r="E5" t="s"><v>${s('y')}</v></c><c r="K5" t="s"><v>${s('Existing 6 Poles switchboard ')}</v></c></row><row r="6"><c r="N6" t="s"><v>${s('Contact name placeholder')}</v></c></row></sheetData></worksheet>`;
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:N6"/><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><sheetData><row r="1"><c r="A1" t="s"><v>${s('Trailer register')}</v></c></row><row r="2"><c r="A2" t="s"><v>${s('Vin')}</v></c><c r="B2" t="s"><v>${s('Power')}</v></c><c r="C2" t="s"><v>${s('Battery')}</v></c><c r="D2" t="s"><v>${s('Date')}</v></c><c r="E2" t="s"><v>${s('Ecert')}</v></c></row><row r="3"><c r="A3" t="s"><v>${s('R33PD1344TA900010')}</v></c><c r="D3" s="1"><v>46224</v></c><c r="E3" t="s"><v>${s('Y')}</v></c></row><row r="4"><c r="A4" t="s"><v>${s('R33PD134XTA900013')}</v></c><c r="D4" s="1"><v>46224</v></c><c r="E4" t="s"><v>${s('Y')}</v></c></row><row r="5"><c r="A5" t="s"><v>${s('R33PD1348TA900012')}</v></c><c r="B5" t="s"><v>${s('2000W')}</v></c><c r="C5"><v>200</v></c><c r="D5" s="1"><v>46225</v></c><c r="E5" t="s"><v>${s('y')}</v></c><c r="K5" t="s"><v>${s('Existing 6 Poles switchboard ')}</v></c></row><row r="6"><c r="N6" t="s"><v>${s('Contact name placeholder')}</v></c></row></sheetData></worksheet>`;
 
 const SHARED = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="${STRINGS.length}" uniqueCount="${STRINGS.length}">${STRINGS.map((t) => `<si><t xml:space="preserve">${t}</t></si>`).join('')}</sst>`;
