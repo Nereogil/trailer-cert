@@ -1,0 +1,9 @@
+# Never commit real job data or credentials
+*.xlsx
+!samples/*.template.xlsx
+*.pdf
+secrets.json
+.env
+node_modules/
+.DS_Store
+Thumbs.db
