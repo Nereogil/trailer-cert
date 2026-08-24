@@ -14,7 +14,7 @@
 
 - No build step. `index.html` loads `src/app.js` as `<script type="module">`; the served directory is the deployable artifact.
 - No runtime dependency on any CDN. Everything under `vendor/` is committed.
-- No personal data, licence numbers, customer details, real VINs or API keys in any committed file. Test fixtures are redacted. `samples/` is gitignored and holds the real files locally.
+- No personal data, licence numbers, customer details or API keys in any committed file. `samples/` and `api.txt` are gitignored and hold the real files locally. Real VINs *are* committed as test fixtures — they are the ground truth proving the check-digit implementation matches reality, and a VIN is stamped on the outside of the trailer rather than being private information.
 - Node 24.15.0, npm 11.12.1 are installed. Test command is `npm test` (vitest run).
 - Target browser is Chrome on Android. No IE/Safari shims required, but avoid APIs Chrome Android lacks — specifically **no `showOpenFilePicker`/`showSaveFilePicker`** (unsupported on Android); use `<input type="file">` and anchor-download instead.
 - Excel serial date epoch is `Date.UTC(1899, 11, 30)`; serial = whole days since that instant.

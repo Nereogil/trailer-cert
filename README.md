@@ -117,9 +117,12 @@ runs anywhere without carrying real data.
 The repository is private, so free GitHub Pages is not available. Two ways
 forward:
 
-- **Flip the repo public and enable Pages.** The code holds no API key, no
-  customer details and no VINs, so there is nothing sensitive to expose.
-  Settings → Pages → deploy from `main`.
+- **Flip the repo public and enable Pages.** Check first: the code holds no API
+  key and no personal details, but the test fixtures do contain **real trailer
+  VINs** from the register, used as ground truth for the check-digit tests. A VIN
+  is stamped on the outside of the trailer rather than being private
+  information, but swap them for synthetic ones before going public if you would
+  rather not publish the customer's fleet. Settings → Pages → deploy from `main`.
 - **Cloudflare Pages**, which serves private repos on the free tier. Connect the
   repo, set the build command to none and the output directory to `/`.
 
@@ -147,6 +150,16 @@ tools/                icon generator, certificate text dumper
 test/                 vitest suites and redacted fixtures
 vendor/               fflate and pdf.js, committed so the app works offline
 ```
+
+## Keys and data in this repo
+
+No API key and no personal details (names, licence numbers, addresses, emails)
+are committed. The Vision key lives in the phone's local storage; `api.txt` and
+`samples/` are gitignored.
+
+The committed test fixtures do contain **real VINs** from the register. They earn
+their place: they are the evidence that the check-digit implementation agrees
+with the real world. The redacted certificate fixture uses a synthetic VIN.
 
 ## Known gaps
 
