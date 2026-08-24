@@ -1,5 +1,7 @@
 # Trailer Cert
 
+**Live: https://nereogil.github.io/trailer-cert/**
+
 Photograph a camper trailer's compliance plate, get a check-digit-verified VIN,
 record the test results and evidence photos on the spot, drop in the CCEW when
 it comes back, and append it all to `Trailers.xlsx` without disturbing the file.
@@ -8,7 +10,13 @@ Built for one job: NSW electrical certification of Breath Trailer campers.
 
 ---
 
-## Getting it running
+## Using it
+
+Open **https://nereogil.github.io/trailer-cert/** on the phone, then Chrome menu
+→ **Add to Home screen**. It installs as an app and the whole shell is cached,
+so it opens with no signal. Only the plate OCR needs a connection.
+
+## Running it locally
 
 ```bash
 npm install
@@ -47,9 +55,10 @@ reads `PERMISSION_DENIED ... requires billing to be enabled`. Enable it at
 Once it is on, the first **1,000 images each month are free**. At thirty-odd
 trailers a month you will not be charged.
 
-Once the app is hosted at a fixed address, add an **Application restriction →
-HTTP referrers** for that address. The key lives in the phone's local storage
-and is never committed to this repository.
+**Restrict the key.** The site is public, so add an **Application restriction →
+HTTP referrers** for `https://nereogil.github.io/trailer-cert/*`. Without it,
+anyone who reads the key out of a phone could spend against your project. The key
+itself lives in the phone's local storage and is never committed here.
 
 ## How a job goes
 
@@ -119,20 +128,8 @@ runs anywhere without carrying real data.
 
 ## Hosting
 
-The repository is private, so free GitHub Pages is not available. Two ways
-forward:
-
-- **Flip the repo public and enable Pages.** Check first: the code holds no API
-  key and no personal details, but the test fixtures do contain **real trailer
-  VINs** from the register, used as ground truth for the check-digit tests. A VIN
-  is stamped on the outside of the trailer rather than being private
-  information, but swap them for synthetic ones before going public if you would
-  rather not publish the customer's fleet. Settings → Pages → deploy from `main`.
-- **Cloudflare Pages**, which serves private repos on the free tier. Connect the
-  repo, set the build command to none and the output directory to `/`.
-
-Either way the whole repository *is* the deployable site — there is no build
-step. Once it has a fixed address, restrict the Vision key to it.
+Served by GitHub Pages from `main` at the repository root. The whole repository
+*is* the site — there is no build step, so a push to `main` deploys.
 
 ## Layout
 
@@ -164,7 +161,10 @@ are committed. The Vision key lives in the phone's local storage; `api.txt` and
 
 The committed test fixtures do contain **real VINs** from the register. They earn
 their place: they are the evidence that the check-digit implementation agrees
-with the real world. The redacted certificate fixture uses a synthetic VIN.
+with the real world. The redacted certificate fixture uses a synthetic VIN. This
+repository is public, so those VINs are public — a VIN is stamped on the outside
+of the trailer rather than being private, but swap them for synthetic ones if you
+would rather not publish the customer's fleet.
 
 ## Known gaps
 
@@ -174,8 +174,6 @@ with the real world. The redacted certificate fixture uses a synthetic VIN.
   on the first real scan. If the fields land in the wrong slots, dump the response
   and compare it with `test/fixtures/plate-vision-response.json`; the two-column
   handling in `src/plate-parser.js` is the part most likely to need adjusting.
-- Offline caching via the service worker has not been verified on a real phone.
-  If it fails, the app still works with a signal.
 - The certificate parser knows the equipment types these certificates use. A
   type it has not seen will be skipped rather than misread; add it to
   `EQUIPMENT_ANCHOR` in `src/coc-parser.js`.
