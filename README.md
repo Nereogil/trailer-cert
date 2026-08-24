@@ -39,8 +39,13 @@ you just type the plate in by hand.
 4. Edit the key → **API restrictions → Restrict key → Cloud Vision API**
 5. Paste it into the app's **Setup** tab
 
-Billing has to be enabled on the project, but the first **1,000 images each
-month are free**. At thirty-odd trailers a month you will not be charged.
+**Billing must be enabled on the project or Vision refuses to answer at all** —
+even for the free allowance. This is the first wall a new key hits; the error
+reads `PERMISSION_DENIED ... requires billing to be enabled`. Enable it at
+**Billing** in the Cloud console and attach a payment method.
+
+Once it is on, the first **1,000 images each month are free**. At thirty-odd
+trailers a month you will not be charged.
 
 Once the app is hosted at a fixed address, add an **Application restriction →
 HTTP referrers** for that address. The key lives in the phone's local storage
@@ -163,10 +168,12 @@ with the real world. The redacted certificate fixture uses a synthetic VIN.
 
 ## Known gaps
 
-- The plate parser's test fixture is synthetic — its geometry mirrors the real
-  plate, but it has not yet been checked against a genuine Vision response. Do
-  that on the first real scan, and if the response disagrees, replace the fixture
-  with the real one and adjust.
+- **The plate parser has not been checked against a real Vision response.** Its
+  fixture is synthetic: the geometry mirrors the real plate, but a live call was
+  not possible because billing was not yet enabled on the Cloud project. Do this
+  on the first real scan. If the fields land in the wrong slots, dump the response
+  and compare it with `test/fixtures/plate-vision-response.json`; the two-column
+  handling in `src/plate-parser.js` is the part most likely to need adjusting.
 - Offline caching via the service worker has not been verified on a real phone.
   If it fails, the app still works with a signal.
 - The certificate parser knows the equipment types these certificates use. A

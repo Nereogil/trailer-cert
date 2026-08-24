@@ -58,6 +58,14 @@ export async function annotatePlate(file, apiKey) {
     if (response.status === 400 && /API key not valid/i.test(message)) {
       throw new Error('That API key is not valid. Check it in Settings.');
     }
+    // Vision needs billing switched on even to use the free monthly allowance,
+    // and this is the first wall a new key hits. Say so plainly rather than
+    // passing on a bare PERMISSION_DENIED.
+    if (/requires billing to be enabled/i.test(message)) {
+      throw new Error(
+        'Google needs billing enabled on the Cloud project before Vision will answer — even for the free 1,000 images a month. Turn it on in the Google Cloud console, then try again.'
+      );
+    }
     if (response.status === 403) {
       throw new Error(
         `Vision refused the key: ${message} — check the Cloud Vision API is enabled and the key is not restricted away from this site.`
