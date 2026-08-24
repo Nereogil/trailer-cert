@@ -7,3 +7,6 @@ secrets.json
 node_modules/
 .DS_Store
 Thumbs.db
+
+# Real job data, photos and certificates stay local
+samples/
