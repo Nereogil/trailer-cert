@@ -1,0 +1,55 @@
+{
+  "_comment": "Synthetic Google Vision DOCUMENT_TEXT_DETECTION response shaped like a real one. Coordinates are invented but the relative layout is faithful to the Breath Trailer compliance plate: a two-column form where BODY SIZE and ATM share a visual row. Replace with a redacted real response once an API key exists.",
+  "responses": [
+    {
+      "textAnnotations": [
+        { "description": "MANUFACTURER Breath Trailer VIN NUMBER R33PD1347TA900017 BODY SIZE 290X150X136 CM ATM 1500 KGS TOTAL SIZE 435*150*186 CM GTM 1380 KGS MM 04 TARE WEIGHT 732 KGS YY 2026 AXLE GROUP LOAD CAPACITY MAX SPEED 80 KM/H 1500 KGS" },
+
+        { "description": "MANUFACTURER", "boundingPoly": { "vertices": [{"x":40,"y":100},{"x":230,"y":100},{"x":230,"y":130},{"x":40,"y":130}] } },
+        { "description": "Breath", "boundingPoly": { "vertices": [{"x":250,"y":100},{"x":330,"y":100},{"x":330,"y":130},{"x":250,"y":130}] } },
+        { "description": "Trailer", "boundingPoly": { "vertices": [{"x":340,"y":100},{"x":420,"y":100},{"x":420,"y":130},{"x":340,"y":130}] } },
+
+        { "description": "VIN", "boundingPoly": { "vertices": [{"x":40,"y":160},{"x":90,"y":160},{"x":90,"y":190},{"x":40,"y":190}] } },
+        { "description": "NUMBER", "boundingPoly": { "vertices": [{"x":100,"y":160},{"x":190,"y":160},{"x":190,"y":190},{"x":100,"y":190}] } },
+        { "description": "R33PD1347TA900017", "boundingPoly": { "vertices": [{"x":250,"y":160},{"x":560,"y":160},{"x":560,"y":190},{"x":250,"y":190}] } },
+
+        { "description": "BODY", "boundingPoly": { "vertices": [{"x":40,"y":220},{"x":110,"y":220},{"x":110,"y":250},{"x":40,"y":250}] } },
+        { "description": "SIZE", "boundingPoly": { "vertices": [{"x":120,"y":220},{"x":185,"y":220},{"x":185,"y":250},{"x":120,"y":250}] } },
+        { "description": "290X150X136", "boundingPoly": { "vertices": [{"x":250,"y":220},{"x":420,"y":220},{"x":420,"y":250},{"x":250,"y":250}] } },
+        { "description": "CM", "boundingPoly": { "vertices": [{"x":440,"y":220},{"x":480,"y":220},{"x":480,"y":250},{"x":440,"y":250}] } },
+        { "description": "ATM", "boundingPoly": { "vertices": [{"x":560,"y":220},{"x":615,"y":220},{"x":615,"y":250},{"x":560,"y":250}] } },
+        { "description": "1500", "boundingPoly": { "vertices": [{"x":900,"y":220},{"x":965,"y":220},{"x":965,"y":250},{"x":900,"y":250}] } },
+        { "description": "KGS", "boundingPoly": { "vertices": [{"x":985,"y":220},{"x":1035,"y":220},{"x":1035,"y":250},{"x":985,"y":250}] } },
+
+        { "description": "TOTAL", "boundingPoly": { "vertices": [{"x":40,"y":280},{"x":120,"y":280},{"x":120,"y":310},{"x":40,"y":310}] } },
+        { "description": "SIZE", "boundingPoly": { "vertices": [{"x":130,"y":280},{"x":195,"y":280},{"x":195,"y":310},{"x":130,"y":310}] } },
+        { "description": "435*150*186", "boundingPoly": { "vertices": [{"x":250,"y":280},{"x":420,"y":280},{"x":420,"y":310},{"x":250,"y":310}] } },
+        { "description": "CM", "boundingPoly": { "vertices": [{"x":440,"y":280},{"x":480,"y":280},{"x":480,"y":310},{"x":440,"y":310}] } },
+        { "description": "GTM", "boundingPoly": { "vertices": [{"x":560,"y":280},{"x":615,"y":280},{"x":615,"y":310},{"x":560,"y":310}] } },
+        { "description": "1380", "boundingPoly": { "vertices": [{"x":900,"y":280},{"x":965,"y":280},{"x":965,"y":310},{"x":900,"y":310}] } },
+        { "description": "KGS", "boundingPoly": { "vertices": [{"x":985,"y":280},{"x":1035,"y":280},{"x":1035,"y":310},{"x":985,"y":310}] } },
+
+        { "description": "MM", "boundingPoly": { "vertices": [{"x":40,"y":340},{"x":85,"y":340},{"x":85,"y":370},{"x":40,"y":370}] } },
+        { "description": "04", "boundingPoly": { "vertices": [{"x":250,"y":340},{"x":290,"y":340},{"x":290,"y":370},{"x":250,"y":370}] } },
+        { "description": "TARE", "boundingPoly": { "vertices": [{"x":560,"y":340},{"x":630,"y":340},{"x":630,"y":370},{"x":560,"y":370}] } },
+        { "description": "WEIGHT", "boundingPoly": { "vertices": [{"x":640,"y":340},{"x":745,"y":340},{"x":745,"y":370},{"x":640,"y":370}] } },
+        { "description": "732", "boundingPoly": { "vertices": [{"x":900,"y":340},{"x":950,"y":340},{"x":950,"y":370},{"x":900,"y":370}] } },
+        { "description": "KGS", "boundingPoly": { "vertices": [{"x":985,"y":340},{"x":1035,"y":340},{"x":1035,"y":370},{"x":985,"y":370}] } },
+
+        { "description": "YY", "boundingPoly": { "vertices": [{"x":40,"y":400},{"x":80,"y":400},{"x":80,"y":430},{"x":40,"y":430}] } },
+        { "description": "2026", "boundingPoly": { "vertices": [{"x":250,"y":400},{"x":315,"y":400},{"x":315,"y":430},{"x":250,"y":430}] } },
+        { "description": "AXLE", "boundingPoly": { "vertices": [{"x":560,"y":400},{"x":630,"y":400},{"x":630,"y":430},{"x":560,"y":430}] } },
+        { "description": "GROUP", "boundingPoly": { "vertices": [{"x":640,"y":400},{"x":730,"y":400},{"x":730,"y":430},{"x":640,"y":430}] } },
+        { "description": "LOAD", "boundingPoly": { "vertices": [{"x":740,"y":400},{"x":810,"y":400},{"x":810,"y":430},{"x":740,"y":430}] } },
+        { "description": "CAPACITY", "boundingPoly": { "vertices": [{"x":820,"y":400},{"x":950,"y":400},{"x":950,"y":430},{"x":820,"y":430}] } },
+
+        { "description": "MAX", "boundingPoly": { "vertices": [{"x":40,"y":460},{"x":100,"y":460},{"x":100,"y":490},{"x":40,"y":490}] } },
+        { "description": "SPEED", "boundingPoly": { "vertices": [{"x":110,"y":460},{"x":195,"y":460},{"x":195,"y":490},{"x":110,"y":490}] } },
+        { "description": "80", "boundingPoly": { "vertices": [{"x":250,"y":460},{"x":290,"y":460},{"x":290,"y":490},{"x":250,"y":490}] } },
+        { "description": "KM/H", "boundingPoly": { "vertices": [{"x":440,"y":460},{"x":510,"y":460},{"x":510,"y":490},{"x":440,"y":490}] } },
+        { "description": "1500", "boundingPoly": { "vertices": [{"x":900,"y":460},{"x":965,"y":460},{"x":965,"y":490},{"x":900,"y":490}] } },
+        { "description": "KGS", "boundingPoly": { "vertices": [{"x":985,"y":460},{"x":1035,"y":460},{"x":1035,"y":490},{"x":985,"y":490}] } }
+      ]
+    }
+  ]
+}
