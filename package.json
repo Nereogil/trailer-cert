@@ -1,0 +1,14 @@
+{
+  "name": "trailer-cert",
+  "private": true,
+  "type": "module",
+  "description": "Camper trailer VIN plate scanner and electrical certification logbook",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "serve": "node serve.mjs"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}
