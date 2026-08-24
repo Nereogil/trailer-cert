@@ -101,7 +101,9 @@ an explicit manual override, which records `vinSource: 'manual'`.
 ## CCEW PDF ingest
 
 The returned certificate is a text-layer PDF from Building Commission NSW. Parse
-client-side with a vendored pdf.js. Extract:
+client-side with a vendored pdf.js, which returns clean text — words intact,
+fields separated by runs of spaces — so this is label-and-regex work rather than
+reconstruction. Extract:
 
 - `Certificate no:` followed by 11 digits
 - `Submission date:` followed by a d/m/yyyy date
@@ -109,16 +111,25 @@ client-side with a vendored pdf.js. Extract:
 - the 17-character VIN from the "Where is the work being carried out?" answer
 - the equipment table rows (type, rating, qty, description)
 
-Match on VIN to an existing job; if no job matches, offer to create one. The
-extracted text is whitespace-noisy (the producer emits per-glyph runs), so all
-matching normalises whitespace before applying patterns.
+Match on VIN to an existing job; if no job matches, offer to create one.
+
+The page header, the security banner and the equipment table's column headings
+repeat on every page and land mid-content, gluing themselves to the last
+description on a page. They are stripped before parsing. The certificate number
+is captured first, because it appears in every page header and stripping removes
+all of it.
 
 ## Excel write-back
 
 `Trailers.xlsx` is a live working file containing web-extension parts that a
-library rebuild would silently drop. So the app **edits the xlsx zip surgically**
-with JSZip: rewrite only `xl/worksheets/sheet1.xml` and `xl/sharedStrings.xml`,
-copy every other entry through byte-for-byte.
+library rebuild would silently drop. So the app **edits the xlsx zip surgically**:
+rewrite only `xl/worksheets/sheet1.xml` and `xl/sharedStrings.xml`, and copy
+every other entry through with its bytes unchanged.
+
+The zip work uses **fflate**, not JSZip. JSZip ships UMD only and does not
+install its global under Vite's ES-module transform, so it cannot be imported by
+both vitest and the browser without a shim; fflate ships a real ES module, is a
+third of the size, and needs no shim.
 
 Existing columns are preserved exactly:
 

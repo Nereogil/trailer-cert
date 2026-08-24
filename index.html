@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f1115">
+  <meta name="description" content="Scan camper trailer compliance plates and keep the electrical certification record.">
+  <title>Trailer Cert</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1 id="page-title">Scan</h1>
+    <span class="header-note" id="header-note"></span>
+  </header>
+
+  <main>
+    <section class="panel" id="tab-scan" aria-labelledby="tabbtn-scan"></section>
+    <section class="panel" id="tab-jobs" aria-labelledby="tabbtn-jobs" hidden></section>
+    <section class="panel" id="tab-coc" aria-labelledby="tabbtn-coc" hidden></section>
+    <section class="panel" id="tab-excel" aria-labelledby="tabbtn-excel" hidden></section>
+    <section class="panel" id="tab-settings" aria-labelledby="tabbtn-settings" hidden></section>
+  </main>
+
+  <nav class="tabbar" role="tablist" aria-label="Sections">
+    <button class="tab" role="tab" id="tabbtn-scan" data-tab="scan" aria-selected="true" aria-controls="tab-scan">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V5h3M20 8V5h-3M4 16v3h3M20 16v3h-3M7 12h10"/></svg>
+      <span>Scan</span>
+    </button>
+    <button class="tab" role="tab" id="tabbtn-jobs" data-tab="jobs" aria-selected="false" aria-controls="tab-jobs">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      <span>Jobs</span>
+      <span class="pip" id="jobs-pip" hidden></span>
+    </button>
+    <button class="tab" role="tab" id="tabbtn-coc" data-tab="coc" aria-selected="false" aria-controls="tab-coc">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7zM14 3v5h5M10 14l2 2 4-4"/></svg>
+      <span>CCEW</span>
+    </button>
+    <button class="tab" role="tab" id="tabbtn-excel" data-tab="excel" aria-selected="false" aria-controls="tab-excel">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM4 10h16M10 4v16"/></svg>
+      <span>Excel</span>
+      <span class="pip" id="excel-pip" hidden></span>
+    </button>
+    <button class="tab" role="tab" id="tabbtn-settings" data-tab="settings" aria-selected="false" aria-controls="tab-settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>
+      <span>Setup</span>
+      <span class="pip warn" id="settings-pip" hidden></span>
+    </button>
+  </nav>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
