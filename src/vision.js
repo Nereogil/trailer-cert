@@ -66,6 +66,20 @@ export async function annotatePlate(file, apiKey) {
         'Google needs billing enabled on the Cloud project before Vision will answer — even for the free 1,000 images a month. Turn it on in the Google Cloud console, then try again.'
       );
     }
+    // The project owning this key has never had the Vision API switched on.
+    // Google's own wording for this buries the fix in a long URL, so name it.
+    if (/SERVICE_DISABLED/i.test(json?.error?.status ?? '') || /has not been used in project|is disabled/i.test(message)) {
+      throw new Error(
+        'The Cloud Vision API is not switched on for the project this key belongs to. In the Google Cloud console: APIs & Services, Library, Cloud Vision API, Enable.'
+      );
+    }
+    // A key locked to different referrers or a different API. Common after
+    // moving the app to a new address.
+    if (response.status === 403 && /referer|referrer|blocked|restriction/i.test(message)) {
+      throw new Error(
+        `This key will not work from ${location.origin}. Its referrer restriction in the Google Cloud console does not cover this address.`
+      );
+    }
     if (response.status === 403) {
       throw new Error(
         `Vision refused the key: ${message} — check the Cloud Vision API is enabled and the key is not restricted away from this site.`

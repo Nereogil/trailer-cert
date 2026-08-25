@@ -47,6 +47,30 @@ you just type the plate in by hand.
 4. Edit the key → **API restrictions → Restrict key → Cloud Vision API**
 5. Paste it into the app's **Setup** tab
 
+### How the app knows which project to use
+
+It does not, and there is nothing to configure. **The key is the pointer.** Every
+Google Cloud API key belongs to exactly one project, so sending
+`vision.googleapis.com/v1/images:annotate?key=...` is enough for Google to work
+out whose project to meter. No project ID appears anywhere in this codebase; the
+only place a project is ever identified is that `key=` parameter in
+`src/vision.js`.
+
+That means everything about *which* project, *which* API and *who pays* is
+decided in the Cloud console, not here. Swapping to a different project is just
+pasting a different key into Setup.
+
+### Reading the error when a scan fails
+
+Vision's rejections say precisely which setup step is missing:
+
+| What the app says | What to fix |
+|---|---|
+| The Cloud Vision API is not switched on for the project this key belongs to | Step 2 — enable the API |
+| Google needs billing enabled on the Cloud project | Link a billing account (see below) |
+| That API key is not valid | Step 3 — wrong or deleted key |
+| This key will not work from `<address>` | Step 4 — referrer restriction does not cover this site |
+
 **Billing must be enabled on the project or Vision refuses to answer at all** —
 even for the free allowance. This is the first wall a new key hits; the error
 reads `PERMISSION_DENIED ... requires billing to be enabled`. Enable it at
