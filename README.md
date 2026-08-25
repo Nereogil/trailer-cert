@@ -115,10 +115,21 @@ against its ISO-3779 check digit before anything is saved. A VIN that fails is
 shown in red and cannot be saved without ticking an explicit override; where the
 failure has exactly one plausible single-character fix, the app offers it.
 
-**Jobs** → the trailer's record: plate figures, inverter and battery, test
-results (RCD trip time and current, insulation resistance, earth continuity,
-polarity, the CCEW test list), install description, and photos. Add a photo of
-the tester's display and it stays attached to the trailer.
+**Jobs** → the trailer's record: VIN and manufacturer, inverter and battery,
+test results, install description, and photos.
+
+**Scan tester screen** sits in the test results section. Photograph the
+MT-6600's display and it fills the numbers in:
+
+- **RCD auto test** → the rated trip current and the ×1 pair at 0° and 180°.
+  The certificate figure is set to the slower of the two, since that is the one
+  that has to satisfy the limit. The ×½ and ×5 rows are read only to check the
+  RCD did not trip at half current, which would be a fail.
+- **Low-ohm continuity** → the reading, checked against the limit set on the
+  tester.
+
+The photo is kept against the job either way, so the evidence is there even when
+the reading needs correcting by hand. The insulation screen is not read yet.
 
 **CCEW** → when the certificate PDF comes back from the portal, pick it here.
 The app reads the certificate number, submission date, test completed date, the
@@ -188,6 +199,8 @@ styles.css
 src/vin.js            check digit, normalisation, fix suggestion
 src/plate-parser.js   Vision word boxes -> plate fields
 src/coc-parser.js     certificate text -> CCEW fields
+src/tester-parser.js  MT-6600 screens -> RCD and continuity readings
+src/vision-geometry.js  rotate boxes flat, group words into rows
 src/xlsx-read.js      read the register
 src/xlsx-write.js     append rows without rebuilding it
 src/zip.js            fflate wrapper

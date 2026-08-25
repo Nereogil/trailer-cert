@@ -1,0 +1,334 @@
+{
+ "_comment": "Modelled on a photographed RS PRO MT-6600 low-ohm continuity screen. The reading is in the large display font, so its box is much taller than the limit in the corner.",
+ "responses": [
+  {
+   "textAnnotations": [
+    {
+     "description": "16.12.2013 23:28 Continuity 0.5\u03a9 Beeper ON 0.065 \u03a9 ---- mA ZERO L PE N"
+    },
+    {
+     "description": "16.12.2013",
+     "boundingPoly": {
+      "vertices": [
+       {
+        "x": 300,
+        "y": 120
+       },
+       {
+        "x": 430,
+        "y": 120
+       },
+       {
+        "x": 430,
+        "y": 145
+       },
+       {
+        "x": 300,
+        "y": 145
+       }
+      ]
+     }
+    },
+    {
+     "description": "23:28",
+     "boundingPoly": {
+      "vertices": [
+       {
+        "x": 470,
+        "y": 120
+       },
+       {
+        "x": 540,
+        "y": 120
+       },
+       {
+        "x": 540,
+        "y": 145
+       },
+       {
+        "x": 470,
+        "y": 145
+       }
+      ]
+     }
+    },
+    {
+     "description": "Continuity",
+     "boundingPoly": {
+      "vertices": [
+       {
+        "x": 60,
+        "y": 180
+       },
+       {
+        "x": 175,
+        "y": 180
+       },
+       {
+        "x": 175,
+        "y": 205
+       },
+       {
+        "x": 60,
+        "y": 205
+       }
+      ]
+     }
+    },
+    {
+     "description": "0.5\u03a9",
+     "boundingPoly": {
+      "vertices": [
+       {
+        "x": 60,
+        "y": 215
+       },
+       {
+        "x": 120,
+        "y": 215
+       },
+       {
+        "x": 120,
+        "y": 240
+       },
+       {
+        "x": 60,
+        "y": 240
+       }
+      ]
+     }
+    },
+    {
+     "description": "Beeper",
+     "boundingPoly": {
+      "vertices": [
+       {
+        "x": 60,
+        "y": 285
+       },
+       {
+        "x": 145,
+        "y": 285
+       },
+       {
+        "x": 145,
+        "y": 310
+       },
+       {
+        "x": 60,
+        "y": 310
+       }
+      ]
+     }
+    },
+    {
+     "description": "ON",
+     "boundingPoly": {
+      "vertices": [
+       {
+        "x": 60,
+        "y": 320
+       },
+       {
+        "x": 100,
+        "y": 320
+       },
+       {
+        "x": 100,
+        "y": 345
+       },
+       {
+        "x": 60,
+        "y": 345
+       }
+      ]
+     }
+    },
+    {
+     "description": "ZERO",
+     "boundingPoly": {
+      "vertices": [
+       {
+        "x": 60,
+        "y": 590
+       },
+       {
+        "x": 125,
+        "y": 590
+       },
+       {
+        "x": 125,
+        "y": 615
+       },
+       {
+        "x": 60,
+        "y": 615
+       }
+      ]
+     }
+    },
+    {
+     "description": "0.065",
+     "boundingPoly": {
+      "vertices": [
+       {
+        "x": 300,
+        "y": 300
+       },
+       {
+        "x": 640,
+        "y": 300
+       },
+       {
+        "x": 640,
+        "y": 400
+       },
+       {
+        "x": 300,
+        "y": 400
+       }
+      ]
+     }
+    },
+    {
+     "description": "\u03a9",
+     "boundingPoly": {
+      "vertices": [
+       {
+        "x": 700,
+        "y": 320
+       },
+       {
+        "x": 745,
+        "y": 320
+       },
+       {
+        "x": 745,
+        "y": 380
+       },
+       {
+        "x": 700,
+        "y": 380
+       }
+      ]
+     }
+    },
+    {
+     "description": "----",
+     "boundingPoly": {
+      "vertices": [
+       {
+        "x": 420,
+        "y": 440
+       },
+       {
+        "x": 520,
+        "y": 440
+       },
+       {
+        "x": 520,
+        "y": 470
+       },
+       {
+        "x": 420,
+        "y": 470
+       }
+      ]
+     }
+    },
+    {
+     "description": "mA",
+     "boundingPoly": {
+      "vertices": [
+       {
+        "x": 700,
+        "y": 440
+       },
+       {
+        "x": 750,
+        "y": 440
+       },
+       {
+        "x": 750,
+        "y": 470
+       },
+       {
+        "x": 700,
+        "y": 470
+       }
+      ]
+     }
+    },
+    {
+     "description": "L",
+     "boundingPoly": {
+      "vertices": [
+       {
+        "x": 250,
+        "y": 610
+       },
+       {
+        "x": 268,
+        "y": 610
+       },
+       {
+        "x": 268,
+        "y": 632
+       },
+       {
+        "x": 250,
+        "y": 632
+       }
+      ]
+     }
+    },
+    {
+     "description": "PE",
+     "boundingPoly": {
+      "vertices": [
+       {
+        "x": 420,
+        "y": 610
+       },
+       {
+        "x": 455,
+        "y": 610
+       },
+       {
+        "x": 455,
+        "y": 632
+       },
+       {
+        "x": 420,
+        "y": 632
+       }
+      ]
+     }
+    },
+    {
+     "description": "N",
+     "boundingPoly": {
+      "vertices": [
+       {
+        "x": 600,
+        "y": 610
+       },
+       {
+        "x": 618,
+        "y": 610
+       },
+       {
+        "x": 618,
+        "y": 632
+       },
+       {
+        "x": 600,
+        "y": 632
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

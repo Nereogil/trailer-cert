@@ -1,5 +1,7 @@
 import { el, clear, field, textInput, numberInput, toast, debounce, formatDate } from './dom.js';
 import { validateVin, normalizeVin } from '../vin.js';
+import { parseTesterScreen } from '../tester-parser.js';
+import { annotatePlate } from '../vision.js';
 import { capturePhoto, downloadBlob, photoFilename, formatBytes } from '../photos.js';
 import * as db from '../db.js';
 import * as settings from '../settings.js';
@@ -281,12 +283,25 @@ async function renderDetail(jobId) {
         value: job.tests.date ?? '',
         onChange: (e) => { job.tests.date = e.target.value; saveNow(); },
       })),
+      testerScanner(job, saveNow),
       el('div', { class: 'grid-2' }, [
-        field('RCD trip time (ms)', numberInput(job.tests.rcdTripMs, {
-          onInput: (e) => { job.tests.rcdTripMs = numeric(e.target.value); save(); },
+        field('RCD ×1 at 0° (ms)', numberInput(job.tests.rcdX1Zero, {
+          id: 'f-rcd-zero',
+          onInput: (e) => { job.tests.rcdX1Zero = numeric(e.target.value); save(); },
         })),
+        field('RCD ×1 at 180° (ms)', numberInput(job.tests.rcdX1OneEighty, {
+          id: 'f-rcd-180',
+          onInput: (e) => { job.tests.rcdX1OneEighty = numeric(e.target.value); save(); },
+        })),
+      ]),
+      el('div', { class: 'grid-2' }, [
         field('RCD trip current (mA)', numberInput(job.tests.rcdTripCurrentMa, {
+          id: 'f-rcd-ma',
           onInput: (e) => { job.tests.rcdTripCurrentMa = numeric(e.target.value); save(); },
+        })),
+        field('RCD trip time (ms)', numberInput(job.tests.rcdTripMs, {
+          id: 'f-rcd-ms',
+          onInput: (e) => { job.tests.rcdTripMs = numeric(e.target.value); save(); },
         })),
       ]),
       el('div', { class: 'grid-2' }, [
@@ -295,7 +310,8 @@ async function renderDetail(jobId) {
           onInput: (e) => { job.tests.insulationMohm = numeric(e.target.value); save(); },
         })),
         field('Earth continuity (Ω)', numberInput(job.tests.earthContinuityOhm, {
-          step: '0.01',
+          step: '0.001',
+          id: 'f-continuity',
           onInput: (e) => { job.tests.earthContinuityOhm = numeric(e.target.value); save(); },
         })),
       ]),
@@ -339,6 +355,112 @@ async function renderDetail(jobId) {
   );
 
   refreshVin();
+}
+
+
+// Photograph the tester's screen and let it fill the numbers in. Same discipline
+// as the plate: the reading lands in the form, and the electrician confirms it.
+// Only the RCD auto table and the low-ohm continuity screen are read.
+function testerScanner(job, saveNow) {
+  const input = el('input', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true });
+  const status = el('p', { class: 'hint' });
+  const warnBox = el('div');
+
+  const setField = (id, value) => {
+    const node = document.getElementById(id);
+    if (node) node.value = value ?? '';
+  };
+
+  const showWarnings = (list) => {
+    clear(warnBox);
+    if (!list?.length) return;
+    warnBox.append(
+      el('div', { class: 'callout warn' }, [
+        el('ul', { style: 'margin:0;padding-left:18px' }, list.map((w) => el('li', { text: w }))),
+      ])
+    );
+  };
+
+  input.addEventListener('change', async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    input.value = '';
+    clear(warnBox);
+
+    const config = settings.get();
+    if (!config.visionApiKey) {
+      status.className = 'hint error';
+      status.textContent = 'No Vision API key set. Add one in Setup, or type the values in.';
+      return;
+    }
+
+    status.className = 'hint working';
+    status.textContent = 'Reading the tester…';
+
+    try {
+      const reading = parseTesterScreen(await annotatePlate(file, config.visionApiKey));
+
+      if (reading.kind === 'rcd') {
+        if (reading.tripCurrentMa !== null) {
+          job.tests.rcdTripCurrentMa = reading.tripCurrentMa;
+          setField('f-rcd-ma', reading.tripCurrentMa);
+        }
+        if (reading.x1Zero !== null) {
+          job.tests.rcdX1Zero = reading.x1Zero;
+          setField('f-rcd-zero', reading.x1Zero);
+        }
+        if (reading.x1OneEighty !== null) {
+          job.tests.rcdX1OneEighty = reading.x1OneEighty;
+          setField('f-rcd-180', reading.x1OneEighty);
+        }
+        // The certificate wants a single figure, and the slower of the pair is
+        // the one that has to satisfy the limit.
+        const pair = [reading.x1Zero, reading.x1OneEighty].filter((v) => v !== null);
+        if (pair.length) {
+          job.tests.rcdTripMs = Math.max(...pair);
+          setField('f-rcd-ms', job.tests.rcdTripMs);
+        }
+        status.className = 'hint';
+        status.textContent = pair.length
+          ? `Read the RCD table: ×1 ${pair.join(' and ')} ms. Check against the screen.`
+          : 'Could not read the ×1 row.';
+      } else if (reading.kind === 'continuity') {
+        if (reading.ohms !== null) {
+          job.tests.earthContinuityOhm = reading.ohms;
+          setField('f-continuity', reading.ohms);
+        }
+        status.className = 'hint';
+        status.textContent = reading.ohms !== null
+          ? `Read ${reading.ohms} Ω. Check against the screen.`
+          : 'Could not read a value.';
+      } else {
+        status.className = 'hint error';
+        status.textContent = 'That screen is not one I read.';
+      }
+
+      showWarnings(reading.warnings);
+      await saveNow();
+
+      // Keep the photo as evidence regardless of how well it read.
+      try {
+        await capturePhoto(file, 'tester', job.id, reading.kind);
+      } catch (err) {
+        console.error('Could not store the tester photo', err);
+      }
+    } catch (err) {
+      status.className = 'hint error';
+      status.textContent = `${err.message} You can type the values in instead.`;
+    }
+  });
+
+  return el('div', { style: 'margin-bottom:10px' }, [
+    el('label', { class: 'capture' }, [
+      input,
+      el('span', { class: 'big-button', style: 'min-height:56px;font-size:15px', text: 'Scan tester screen' }),
+    ]),
+    status,
+    warnBox,
+  ]);
 }
 
 function descriptionPicker(job, save) {
