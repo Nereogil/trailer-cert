@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { parsePlate, tokensFromVisionResponse, groupIntoLines, plateWarnings } from '../src/plate-parser.js';
+import { parsePlate, tokensFromVisionResponse, groupIntoLines, plateWarnings, textAngle } from '../src/plate-parser.js';
 
 const response = JSON.parse(
   readFileSync(new URL('./fixtures/plate-vision-response.json', import.meta.url), 'utf8')
@@ -212,5 +212,94 @@ describe('plateWarnings', () => {
     // The real scan read GTM as 1300 when the plate says 1380. Nothing about
     // 1300 is suspicious, which is why the confirm screen exists.
     expect(plateWarnings({ ...CLEAN, gtmKg: 1300 })).toEqual([]);
+  });
+});
+
+// A phone held sideways puts the plate's text running vertically down the
+// image. Vision still reads it, but every bounding box arrives rotated, and
+// row-grouping on raw coordinates finds columns instead of rows.
+describe('parsePlate on a rotated photo', () => {
+  const rotate = (json, degrees) => {
+    const rad = (degrees * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    const out = structuredClone(json);
+    for (const a of out.responses[0].textAnnotations) {
+      if (!a.boundingPoly) continue;
+      a.boundingPoly.vertices = a.boundingPoly.vertices.map(({ x, y }) => ({
+        x: Math.round(x * cos - y * sin),
+        y: Math.round(x * sin + y * cos),
+      }));
+    }
+    return out;
+  };
+
+  const upright = parsePlate(response);
+
+  it.each([90, -90, 180, 7, -12])('reads the same fields at %s degrees', (deg) => {
+    const turned = parsePlate(rotate(response, deg));
+    expect(turned.fields).toEqual(upright.fields);
+    expect(turned.vinCheck.ok).toBe(true);
+  });
+
+  it('still keeps the two columns apart when sideways', () => {
+    // The failure this guards against: at 90 degrees, "ATM 1500" and
+    // "BODY SIZE 290X150X136" stop sharing a row and the values swap around.
+    const turned = parsePlate(rotate(response, 90));
+    expect(turned.fields.bodySizeCm).toBe('290X150X136');
+    expect(turned.fields.atmKg).toBe(1500);
+    expect(turned.fields.gtmKg).toBe(1380);
+    expect(turned.fields.tareKg).toBe(732);
+  });
+
+  it('reports the dominant text angle', () => {
+    const tokens = tokensFromVisionResponse(response);
+    expect(tokens.length).toBeGreaterThan(0);
+    // Already upright, so nothing should have been rotated.
+    expect(Math.abs(textAngle(tokens.map((t) => ({
+      vertices: [{ x: t.x0, y: t.y0 }, { x: t.x1, y: t.y0 }, { x: t.x1, y: t.y1 }, { x: t.x0, y: t.y1 }],
+    })))) ).toBeLessThan(0.01);
+  });
+});
+
+// Drawn from the second real scan, which was a photo of a screen: several
+// figures lost a digit rather than failing outright.
+describe('plateWarnings on dropped digits', () => {
+  const CLEAN2 = {
+    vin: 'R33PD1347TA900017', manufacturer: 'Breath Trailer',
+    atmKg: 1500, gtmKg: 1380, tareKg: 730, axleCapacityKg: 1500,
+    mm: '12', yy: '2025', maxSpeedKmh: 80,
+    bodySizeCm: '290X150X136', totalSizeCm: '435*150*186',
+  };
+
+  it('catches a tare that lost its trailing zero', () => {
+    // The real scan read 730 as 73. On its own 73 looks like a number.
+    expect(plateWarnings({ ...CLEAN2, tareKg: 73 }).join(' '))
+      .toMatch(/Tare \(73\) is very light for a GTM of 1380/);
+  });
+
+  it('catches a body size that lost digits', () => {
+    // The real scan read 290X150X136 as 20X50X36.
+    expect(plateWarnings({ ...CLEAN2, bodySizeCm: '20X50X36' }).join(' '))
+      .toMatch(/Body size reads "20X50X36" .* dropped digit/);
+  });
+
+  it('accepts the hyphen separator the OCR sometimes returns', () => {
+    expect(plateWarnings({ ...CLEAN2, totalSizeCm: '435-150-186' })).toEqual([]);
+  });
+
+  it('flags a size that is not three measurements', () => {
+    expect(plateWarnings({ ...CLEAN2, totalSizeCm: '435-150' }).join(' '))
+      .toMatch(/not three measurements/);
+  });
+
+  it('stays quiet on a plate that read correctly', () => {
+    expect(plateWarnings(CLEAN2)).toEqual([]);
+  });
+
+  it('still cannot catch 1380 misread as 1300', () => {
+    // Both are ordinary numbers in an ordinary relationship. Only the person
+    // holding the plate can catch this one.
+    expect(plateWarnings({ ...CLEAN2, gtmKg: 1300 })).toEqual([]);
   });
 });

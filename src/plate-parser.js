@@ -13,26 +13,75 @@ import { normalizeVin, validateVin, suggestVinFix } from './vin.js';
 export function tokensFromVisionResponse(response) {
   const annotations = response?.responses?.[0]?.textAnnotations ?? [];
   // annotations[0] is the entire block of text; the rest are individual words.
-  return annotations
+  const raw = annotations
     .slice(1)
     .map((a) => {
-      const vertices = a.boundingPoly?.vertices ?? [];
-      if (vertices.length === 0) return null;
-      const xs = vertices.map((v) => v.x ?? 0);
-      const ys = vertices.map((v) => v.y ?? 0);
-      const x0 = Math.min(...xs);
-      const x1 = Math.max(...xs);
-      const y0 = Math.min(...ys);
-      const y1 = Math.max(...ys);
-      return {
-        text: a.description ?? '',
-        x0, y0, x1, y1,
-        cx: (x0 + x1) / 2,
-        cy: (y0 + y1) / 2,
-        h: y1 - y0,
-      };
+      const vertices = (a.boundingPoly?.vertices ?? []).map((v) => ({ x: v.x ?? 0, y: v.y ?? 0 }));
+      if (vertices.length < 4) return null;
+      return { text: a.description ?? '', vertices };
     })
     .filter((t) => t && t.text.length > 0);
+
+  return boundsFromVertices(rotateUpright(raw));
+}
+
+// A photo taken with the phone turned sideways puts the plate's text running
+// vertically down the image. Vision reads it perfectly well, but every box
+// comes back in image coordinates, so grouping "words that share a y" finds
+// columns instead of rows and the whole two-column layout falls apart.
+//
+// The fix is to measure how the text is actually lying and rotate the
+// coordinates flat before any of the row logic runs. Each box's first two
+// vertices are its top-left and top-right corners, so the vector between them
+// is the direction the text runs.
+export function textAngle(tokens) {
+  const angles = tokens
+    .map(({ vertices }) => {
+      const [tl, tr] = vertices;
+      const dx = tr.x - tl.x;
+      const dy = tr.y - tl.y;
+      return Math.hypot(dx, dy) < 1 ? null : Math.atan2(dy, dx);
+    })
+    .filter((a) => a !== null)
+    .sort((a, b) => a - b);
+
+  if (angles.length === 0) return 0;
+  return angles[Math.floor(angles.length / 2)];
+}
+
+function rotateUpright(tokens) {
+  const angle = textAngle(tokens);
+  // Leave a nearly-straight photo alone; rotating it would only add rounding
+  // noise to coordinates that are already fine.
+  if (Math.abs(angle) < 0.09) return tokens; // about 5 degrees
+
+  const cos = Math.cos(-angle);
+  const sin = Math.sin(-angle);
+  return tokens.map((token) => ({
+    ...token,
+    vertices: token.vertices.map(({ x, y }) => ({
+      x: x * cos - y * sin,
+      y: x * sin + y * cos,
+    })),
+  }));
+}
+
+function boundsFromVertices(tokens) {
+  return tokens.map(({ text, vertices }) => {
+    const xs = vertices.map((v) => v.x);
+    const ys = vertices.map((v) => v.y);
+    const x0 = Math.min(...xs);
+    const x1 = Math.max(...xs);
+    const y0 = Math.min(...ys);
+    const y1 = Math.max(...ys);
+    return {
+      text,
+      x0, y0, x1, y1,
+      cx: (x0 + x1) / 2,
+      cy: (y0 + y1) / 2,
+      h: y1 - y0,
+    };
+  });
 }
 
 export function groupIntoLines(tokens) {
@@ -281,6 +330,22 @@ export function plateWarnings(fields) {
       warnings.push(`${name} reads ${value} kg, which is outside the range a camper trailer plate should show.`);
     }
   }
+  // A dropped trailing digit turns 730 into 73, which passes every check above
+  // on its own. It only looks wrong next to the GTM.
+  if (gtmKg && tareKg && tareKg < gtmKg * 0.15) {
+    warnings.push(`Tare (${tareKg}) is very light for a GTM of ${gtmKg} — check for a dropped digit.`);
+  }
+
+  for (const [name, value] of [['Body size', fields.bodySizeCm], ['Total size', fields.totalSizeCm]]) {
+    if (!value) continue;
+    const parts = String(value).split(/[X*\-x]/).map((p) => parseInt(p, 10)).filter(Number.isFinite);
+    if (parts.length !== 3) {
+      warnings.push(`${name} reads "${value}", which is not three measurements.`);
+    } else if (parts.some((p) => p < 50)) {
+      warnings.push(`${name} reads "${value}" — a figure under 50 cm suggests a dropped digit.`);
+    }
+  }
+
   if (yy && !/^(19|20)\d{2}$/.test(String(yy))) {
     warnings.push(`Year reads "${yy}", which is not a four-digit year.`);
   }
