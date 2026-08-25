@@ -1,0 +1,23 @@
+# GitHub Pages serves the repository root, which would publish the tests, the
+# design documents and the dev tools as web pages alongside the app. Only the
+# app should be on the web; the rest stays in the repo where it belongs.
+#
+# Jekyll's own defaults already skip vendor/bundle, vendor/cache, vendor/gems
+# and vendor/ruby - but not vendor/ itself, so the committed fflate and pdf.js
+# builds are still served. include: keeps that explicit in case the defaults
+# ever change, because the app is broken without them.
+
+include:
+  - vendor
+
+exclude:
+  - test
+  - docs
+  - tools
+  - samples
+  - node_modules
+  - package.json
+  - package-lock.json
+  - serve.mjs
+  - README.md
+  - _config.yml

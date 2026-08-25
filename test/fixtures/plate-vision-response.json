@@ -1,5 +1,5 @@
 {
-  "_comment": "Synthetic Google Vision DOCUMENT_TEXT_DETECTION response shaped like a real one. Coordinates are invented but the relative layout is faithful to the Breath Trailer compliance plate: a two-column form where BODY SIZE and ATM share a visual row. Replace with a redacted real response once an API key exists.",
+  "_comment": "Synthetic Google Vision DOCUMENT_TEXT_DETECTION response shaped like a real one. Coordinates are invented but the relative layout is faithful to the compliance plate: a two-column form where BODY SIZE and ATM share a visual row. The VIN is synthetic with a genuine check digit. Replace with a redacted real response once a live scan is possible.",
   "responses": [
     {
       "textAnnotations": [

@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { normalizeVin, computeCheckDigit, validateVin, suggestVinFix, VIN_ALPHABET } from '../src/vin.js';
 
-// Real VINs from the trailer fleet. Their position-9 check digits were verified
-// by hand before being used as fixtures, so a failure here means the algorithm
-// broke, not the data.
+// Synthetic VINs, chosen rather than invented at random: every one carries a
+// genuine ISO-3779 check digit, one of them lands on X (remainder 10), and each
+// one's P->9 corruption has exactly one valid repair, so the fix-suggestion
+// tests still test something. They stand in for real fleet VINs, which do not
+// belong in a public repository.
 const GOOD = [
   'R33PD1344TA900010',
   'R33PD134XTA900013',

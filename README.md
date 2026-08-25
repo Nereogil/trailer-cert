@@ -124,7 +124,8 @@ byte-identical.
 
 The suite prefers the real `Trailers.xlsx` when a copy sits in `samples/`
 (gitignored) and falls back to an equivalent synthetic workbook otherwise, so it
-runs anywhere without carrying real data.
+runs anywhere without carrying real data. To exercise it against the real files,
+drop `Trailers.xlsx` and a certificate PDF into `samples/`.
 
 ## Hosting
 
@@ -159,12 +160,14 @@ No API key and no personal details (names, licence numbers, addresses, emails)
 are committed. The Vision key lives in the phone's local storage; `api.txt` and
 `samples/` are gitignored.
 
-The committed test fixtures do contain **real VINs** from the register. They earn
-their place: they are the evidence that the check-digit implementation agrees
-with the real world. The redacted certificate fixture uses a synthetic VIN. This
-repository is public, so those VINs are public — a VIN is stamped on the outside
-of the trailer rather than being private, but swap them for synthetic ones if you
-would rather not publish the customer's fleet.
+Test fixtures use **synthetic VINs**, not the customer's. They are not random:
+each carries a genuine ISO-3779 check digit, one lands on `X`, and each one's
+`P`->`9` corruption has exactly one valid repair, so the tests prove the same
+things a real VIN would.
+
+The site itself serves only the app. `test/`, `docs/` and `tools/` are excluded
+from the published build, so the source of truth for the tests stays in the repo
+without being served as web pages.
 
 ## Known gaps
 
