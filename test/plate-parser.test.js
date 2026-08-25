@@ -303,3 +303,100 @@ describe('plateWarnings on dropped digits', () => {
     expect(plateWarnings({ ...CLEAN2, gtmKg: 1300 })).toEqual([]);
   });
 });
+
+// The VIN is the one field that matters, so it is found by what it is rather
+// than by where it sits: the only 17-character run on the plate whose check
+// digit holds. That survives a mangled label, a rotated photo, and a value that
+// landed nowhere near where it should have.
+describe('finding the VIN without trusting its label', () => {
+  const mangleLabel = (json) => {
+    const out = structuredClone(json);
+    for (const a of out.responses[0].textAnnotations) {
+      if (a.description === 'VIN') a.description = 'VlN';
+      if (a.description === 'NUMBER') a.description = 'NUMBFR';
+    }
+    return out;
+  };
+
+  it('still finds the VIN when the label is unreadable', () => {
+    const r = parsePlate(mangleLabel(response));
+    expect(r.fields.vin).toBe('R33PD1347TA900017');
+    expect(r.vinCheck.ok).toBe(true);
+  });
+
+  it('prefers a check-digit-valid VIN over whatever sat beside the label', () => {
+    // Put a plausible-looking but invalid 17-character run where the label
+    // points, and the real VIN elsewhere on the plate.
+    const out = structuredClone(response);
+    const anns = out.responses[0].textAnnotations;
+    anns.find((a) => a.description === 'R33PD1347TA900017').description = 'R33PD1341TA900017';
+    anns.push({
+      description: 'R33PD1347TA900017',
+      boundingPoly: { vertices: [{x:40,y:600},{x:350,y:600},{x:350,y:630},{x:40,y:630}] },
+    });
+
+    const r = parsePlate(out);
+    expect(r.fields.vin).toBe('R33PD1347TA900017');
+    expect(r.vinCheck.ok).toBe(true);
+  });
+
+  it('assembles a VIN split across neighbouring tokens', () => {
+    const out = structuredClone(response);
+    const anns = out.responses[0].textAnnotations;
+    const whole = anns.find((a) => a.description === 'R33PD1347TA900017');
+    const y = whole.boundingPoly.vertices[0].y;
+    whole.description = 'R33PD1347';
+    whole.boundingPoly.vertices = [{x:250,y},{x:400,y},{x:400,y:y+30},{x:250,y:y+30}];
+    anns.push({
+      description: 'TA900017',
+      boundingPoly: { vertices: [{x:410,y},{x:560,y},{x:560,y:y+30},{x:410,y:y+30}] },
+    });
+
+    const r = parsePlate(out);
+    expect(r.fields.vin).toBe('R33PD1347TA900017');
+    expect(r.vinCheck.ok).toBe(true);
+  });
+
+  it('hands back a well-formed but unverified candidate rather than nothing', () => {
+    const out = structuredClone(response);
+    // Corrupt a data character, not the check digit: the P at index 3 read
+    // as a 9, which is the classic misread on an engraved plate.
+    out.responses[0].textAnnotations.find(
+      (a) => a.description === 'R33PD1347TA900017'
+    ).description = 'R339D1347TA900017';
+
+    const r = parsePlate(out);
+    expect(r.fields.vin).toBe('R339D1347TA900017');
+    expect(r.vinCheck.ok).toBe(false);
+    // and the user gets offered the repair
+    expect(r.vinSuggestion).toBe('R33PD1347TA900017');
+  });
+
+  it('does not try to repair the check digit itself', () => {
+    // If the check digit is what was misread, changing a data character to
+    // match it would produce a different, wrong VIN that happens to validate.
+    // suggestVinFix never touches position 9, so any repair it offers is a
+    // repair to the VIN body - and the user still has to confirm it.
+    const out = structuredClone(response);
+    out.responses[0].textAnnotations.find(
+      (a) => a.description === 'R33PD1347TA900017'
+    ).description = 'R33PD1341TA900017'; // only the check digit changed
+
+    const r = parsePlate(out);
+    expect(r.vinCheck.ok).toBe(false);
+    if (r.vinSuggestion !== null) {
+      expect(r.vinSuggestion).not.toBe('R33PD1347TA900017');
+      expect(r.vinSuggestion[8]).toBe('1'); // the check digit is left as read
+    }
+  });
+
+  it('returns null when there is no VIN-shaped run at all', () => {
+    const r = parsePlate({ responses: [{ textAnnotations: [
+      { description: 'MANUFACTURER Breath Trailer' },
+      { description: 'MANUFACTURER', boundingPoly: { vertices: [{x:40,y:100},{x:230,y:100},{x:230,y:130},{x:40,y:130}] } },
+      { description: 'Breath', boundingPoly: { vertices: [{x:250,y:100},{x:330,y:100},{x:330,y:130},{x:250,y:130}] } },
+    ] }] });
+    expect(r.fields.vin).toBe(null);
+    expect(r.fields.manufacturer).toBe('Breath');
+  });
+});

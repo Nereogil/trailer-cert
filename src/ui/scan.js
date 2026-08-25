@@ -291,32 +291,11 @@ function showConfirm(container, parsed, file, ctx) {
       overrideWrap,
       duplicateWarning,
 
-      ...(parsed.warnings?.length
-        ? [el('div', { class: 'callout warn' }, [
-            el('div', { text: 'Check these before saving:' }),
-            el('ul', { style: 'margin:6px 0 0;padding-left:18px' },
-              parsed.warnings.map((w) => el('li', { text: w }))),
-          ])]
-        : []),
-
-      el('h3', { text: 'Plate details' }),
-      el('p', { class: 'hint', style: 'margin-top:0' , text: 'The camera misses figures on a shiny plate. Compare these against the plate itself.' }),
+      // Only the VIN and the manufacturer are read from the plate. The weights
+      // and sizes were dropped deliberately: nothing downstream uses them, and
+      // OCR on an engraved plate got them wrong often enough that showing them
+      // was worse than not having them.
       plateField('Manufacturer', 'manufacturer'),
-      el('div', { class: 'grid-2' }, [
-        plateField('ATM (kg)', 'atmKg', { inputmode: 'numeric' }),
-        plateField('GTM (kg)', 'gtmKg', { inputmode: 'numeric' }),
-      ]),
-      el('div', { class: 'grid-2' }, [
-        plateField('Tare (kg)', 'tareKg', { inputmode: 'numeric' }),
-        plateField('Axle capacity (kg)', 'axleCapacityKg', { inputmode: 'numeric' }),
-      ]),
-      plateField('Body size (cm)', 'bodySizeCm'),
-      plateField('Total size (cm)', 'totalSizeCm'),
-      el('div', { class: 'grid-2' }, [
-        plateField('Month', 'mm', { inputmode: 'numeric' }),
-        plateField('Year', 'yy', { inputmode: 'numeric' }),
-      ]),
-      plateField('Max speed (km/h)', 'maxSpeedKmh', { inputmode: 'numeric' }),
 
       el('h3', { text: 'Installation' }),
       el('div', { class: 'grid-2' }, [

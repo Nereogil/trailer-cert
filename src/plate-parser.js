@@ -261,6 +261,38 @@ function coerce(type, tokens) {
   return joined || null;
 }
 
+// A VIN identifies itself: it is the only 17-character run on the plate whose
+// check digit holds. Searching for that beats reading the VIN NUMBER label and
+// taking whatever sits beside it, because it does not care how the photo was
+// turned, whether the label was read at all, or where the value ended up.
+export function findVinAnywhere(tokens, lines) {
+  const candidates = [];
+
+  const consider = (text) => {
+    const vin = normalizeVin(text);
+    if (vin.length !== 17) return;
+    candidates.push(vin);
+  };
+
+  for (const token of tokens) consider(token.text);
+
+  // A VIN can arrive split across tokens, so try short runs of neighbours too.
+  for (const line of lines) {
+    for (let i = 0; i < line.length; i++) {
+      for (let n = 2; n <= 4 && i + n <= line.length; n++) {
+        consider(line.slice(i, i + n).map((t) => t.text).join(''));
+      }
+    }
+  }
+
+  const verified = candidates.find((vin) => validateVin(vin).ok);
+  if (verified) return verified;
+
+  // Nothing passed. Offer the first well-formed candidate anyway so the user
+  // has something to correct rather than an empty box.
+  return candidates[0] ?? null;
+}
+
 export function parsePlate(response) {
   const tokens = tokensFromVisionResponse(response);
   const lines = groupIntoLines(tokens);
@@ -286,9 +318,16 @@ export function parsePlate(response) {
   const byDeclarationOrder = LABELS.map((l) => labels.find((f) => f.key === l.key)).filter(Boolean);
 
   for (const label of byDeclarationOrder) {
-    const tokens = valueTokens(lines, label, labels, claimed);
-    for (const token of tokens) claimed.add(token);
-    fields[label.key] = coerce(label.type, tokens);
+    const valueRun = valueTokens(lines, label, labels, claimed);
+    for (const token of valueRun) claimed.add(token);
+    fields[label.key] = coerce(label.type, valueRun);
+  }
+
+  // Prefer a check-digit-verified VIN found anywhere on the plate over whatever
+  // sat beside the label, which on a poor scan can be the wrong thing entirely.
+  const searched = findVinAnywhere(tokens, lines);
+  if (searched && (!fields.vin || !validateVin(fields.vin).ok)) {
+    fields.vin = searched;
   }
 
   return {
