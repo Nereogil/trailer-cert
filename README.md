@@ -121,10 +121,12 @@ test results, install description, and photos.
 **Scan tester screen** sits in the test results section. Photograph the
 MT-6600's display and it fills the numbers in:
 
-- **RCD auto test** → the rated trip current and the ×1 pair at 0° and 180°.
-  The certificate figure is set to the slower of the two, since that is the one
-  that has to satisfy the limit. The ×½ and ×5 rows are read only to check the
-  RCD did not trip at half current, which would be a fail.
+- **RCD auto test** → the rated trip current from the sidebar, and one trip
+  time. The table gives ×1 at both 0° and 180°; the slower of the two is what
+  goes in, since that is the one that has to satisfy the limit. The message
+  under the button names both readings so the figure can be checked against the
+  screen without opening the photo. The ×½ and ×5 rows are read only to check
+  the RCD did not trip at half current, which would be a fail.
 - **Low-ohm continuity** → the reading, checked against the limit set on the
   tester.
 

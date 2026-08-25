@@ -221,3 +221,75 @@ describe('a 180 ms reading on the 0 degree row', () => {
     expect(r.x1OneEighty).toBe(15);    // untouched
   });
 });
+
+describe('the single figure the certificate wants', () => {
+  it('is the slower of the x1 pair', () => {
+    // 25 ms at 0 degrees, 15 ms at 180. The slower one has to meet the limit.
+    expect(parseRcdScreen(RCD).tripTimeMs).toBe(25);
+  });
+
+  it('falls back to whichever half of the pair was read', () => {
+    const one = parseRcdScreen(withRow(RCD, 'x1', 0, '>2000'));
+    expect(one.tripTimeMs).toBe(15);
+  });
+
+  it('is null when no x1 row was read', () => {
+    const none = parseRcdScreen({ responses: [{ textAnnotations: [{ description: 'RCD Auto 30mA' }] }] });
+    expect(none.tripTimeMs).toBe(null);
+  });
+});
+
+describe('reading the rated trip current from the sidebar', () => {
+  const withCurrentToken = (text) => {
+    const out = structuredClone(RCD);
+    const anns = out.responses[0].textAnnotations;
+    anns.find((a) => a.description === '30mA').description = text;
+    anns[0].description = anns[0].description.replace('30mA', text);
+    return out;
+  };
+
+  it('reads it as a single token', () => {
+    expect(parseRcdScreen(RCD).tripCurrentMa).toBe(30);
+  });
+
+  it('reads a zero that came back as the letter O', () => {
+    expect(parseRcdScreen(withCurrentToken('3OmA')).tripCurrentMa).toBe(30);
+  });
+
+  it('reads it with a space before the unit', () => {
+    expect(parseRcdScreen(withCurrentToken('30 mA')).tripCurrentMa).toBe(30);
+  });
+
+  it('reads the number when it is split from the unit', () => {
+    const split = structuredClone(RCD);
+    const anns = split.responses[0].textAnnotations;
+    const cell = anns.find((a) => a.description === '30mA');
+    const [tl] = cell.boundingPoly.vertices;
+    cell.description = '30';
+    cell.boundingPoly.vertices = [
+      { x: tl.x, y: tl.y }, { x: tl.x + 40, y: tl.y },
+      { x: tl.x + 40, y: tl.y + 25 }, { x: tl.x, y: tl.y + 25 },
+    ];
+    anns.push({
+      description: 'mA',
+      boundingPoly: { vertices: [
+        { x: tl.x + 48, y: tl.y }, { x: tl.x + 90, y: tl.y },
+        { x: tl.x + 90, y: tl.y + 25 }, { x: tl.x + 48, y: tl.y + 25 },
+      ] },
+    });
+    expect(parseRcdScreen(split).tripCurrentMa).toBe(30);
+  });
+
+  it('flags a current that is not a standard rating', () => {
+    const odd = parseRcdScreen(withCurrentToken('35mA'));
+    expect(odd.tripCurrentMa).toBe(35);
+    expect(odd.warnings.join(' ')).toMatch(/not a standard rating/);
+  });
+
+  it('stays quiet on the standard ratings', () => {
+    for (const ma of ['10mA', '30mA', '100mA', '300mA']) {
+      const r = parseRcdScreen(withCurrentToken(ma));
+      expect(r.warnings.join(' ')).not.toMatch(/standard rating/);
+    }
+  });
+});

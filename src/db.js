@@ -68,7 +68,6 @@ export function emptyJob() {
     power: { inverterW: null, batteryAh: null },
     tests: {
       date: '', rcdTripMs: null, rcdTripCurrentMa: null,
-      rcdX1Zero: null, rcdX1OneEighty: null,
       insulationMohm: null, earthContinuityOhm: null,
       polarity: '', performed: [], notes: '',
     },

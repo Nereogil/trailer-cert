@@ -285,16 +285,6 @@ async function renderDetail(jobId) {
       })),
       testerScanner(job, saveNow),
       el('div', { class: 'grid-2' }, [
-        field('RCD ×1 at 0° (ms)', numberInput(job.tests.rcdX1Zero, {
-          id: 'f-rcd-zero',
-          onInput: (e) => { job.tests.rcdX1Zero = numeric(e.target.value); save(); },
-        })),
-        field('RCD ×1 at 180° (ms)', numberInput(job.tests.rcdX1OneEighty, {
-          id: 'f-rcd-180',
-          onInput: (e) => { job.tests.rcdX1OneEighty = numeric(e.target.value); save(); },
-        })),
-      ]),
-      el('div', { class: 'grid-2' }, [
         field('RCD trip current (mA)', numberInput(job.tests.rcdTripCurrentMa, {
           id: 'f-rcd-ma',
           onInput: (e) => { job.tests.rcdTripCurrentMa = numeric(e.target.value); save(); },
@@ -405,24 +395,19 @@ function testerScanner(job, saveNow) {
           job.tests.rcdTripCurrentMa = reading.tripCurrentMa;
           setField('f-rcd-ma', reading.tripCurrentMa);
         }
-        if (reading.x1Zero !== null) {
-          job.tests.rcdX1Zero = reading.x1Zero;
-          setField('f-rcd-zero', reading.x1Zero);
+        if (reading.tripTimeMs !== null) {
+          job.tests.rcdTripMs = reading.tripTimeMs;
+          setField('f-rcd-ms', reading.tripTimeMs);
         }
-        if (reading.x1OneEighty !== null) {
-          job.tests.rcdX1OneEighty = reading.x1OneEighty;
-          setField('f-rcd-180', reading.x1OneEighty);
-        }
-        // The certificate wants a single figure, and the slower of the pair is
-        // the one that has to satisfy the limit.
-        const pair = [reading.x1Zero, reading.x1OneEighty].filter((v) => v !== null);
-        if (pair.length) {
-          job.tests.rcdTripMs = Math.max(...pair);
-          setField('f-rcd-ms', job.tests.rcdTripMs);
-        }
+
+        // Say which x1 readings it saw, so the single figure in the form can be
+        // checked against the table on the screen without opening the photo.
+        const seen = [reading.x1Zero, reading.x1OneEighty].filter((v) => v !== null);
         status.className = 'hint';
-        status.textContent = pair.length
-          ? `Read the RCD table: ×1 ${pair.join(' and ')} ms. Check against the screen.`
+        status.textContent = reading.tripTimeMs !== null
+          ? (seen.length === 2
+              ? `×1 read ${seen[0]} and ${seen[1]} ms; the slower one, ${reading.tripTimeMs} ms, goes on the certificate.`
+              : `×1 read ${reading.tripTimeMs} ms. Check against the screen.`)
           : 'Could not read the ×1 row.';
       } else if (reading.kind === 'continuity') {
         if (reading.ohms !== null) {

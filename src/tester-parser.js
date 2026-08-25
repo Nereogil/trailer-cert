@@ -103,9 +103,37 @@ function tripTimeOf(line, fromIndex = 0) {
   return { ms: null, noTrip: false };
 }
 
+// The rated trip current is printed in the left sidebar under "Trip C..", as
+// "30mA". It can arrive as one token or as "30" then "mA", and a zero is easily
+// read back as a letter O, so all three are handled.
+const RATED_CURRENTS = [6, 10, 30, 100, 300, 500, 1000];
+
+function fixDigits(text) {
+  return String(text).replace(/[Oo]/g, '0').replace(/[lI]/g, '1');
+}
+
 function tripCurrentOf(response) {
-  const text = flat(response);
-  const m = /(\d+(?:[.,]\d+)?)\s*mA/i.exec(text);
+  const tokens = tokensFromVisionResponse(response);
+  const lines = groupIntoLines(tokens);
+
+  // "30mA" as a single token.
+  for (const token of tokens) {
+    const m = /^(\d{1,4})m\s?A$/i.exec(fixDigits(token.text).replace(/\s+/g, ''));
+    if (m) return Number(m[1]);
+  }
+
+  // "30" sitting just left of a bare "mA".
+  for (const line of lines) {
+    for (let i = 0; i < line.length; i++) {
+      if (!/^m\s?A$/i.test(line[i].text.replace(/\s+/g, ''))) continue;
+      for (let j = i - 1; j >= 0 && j >= i - 2; j--) {
+        const n = toNumber(fixDigits(line[j].text));
+        if (n !== null) return n;
+      }
+    }
+  }
+
+  const m = /(\d+(?:[.,]\d+)?)\s*m\s?A/i.exec(fixDigits(flat(response)));
   return m ? toNumber(m[1]) : null;
 }
 
@@ -157,7 +185,16 @@ export function parseRcdScreen(response) {
   }
   if (result.tripCurrentMa === null) {
     result.warnings.push('The rated trip current was not read. Type it in.');
+  } else if (!RATED_CURRENTS.includes(result.tripCurrentMa)) {
+    result.warnings.push(
+      `The trip current read as ${result.tripCurrentMa} mA, which is not a standard rating. Check it.`
+    );
   }
+
+  // The single figure the certificate wants: the slower of the x1 pair, because
+  // that is the one that has to satisfy the limit.
+  const pair = [result.x1Zero, result.x1OneEighty].filter((v) => v !== null);
+  result.tripTimeMs = pair.length ? Math.max(...pair) : null;
   if (halfTripped) {
     result.warnings.push('The RCD tripped at half its rated current, which is a fail.');
   }
