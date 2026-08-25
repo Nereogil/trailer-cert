@@ -400,3 +400,50 @@ describe('finding the VIN without trusting its label', () => {
     expect(r.fields.manufacturer).toBe('Breath');
   });
 });
+
+// The reported failure: a plate photographed with the phone turned sideways
+// left the confirm screen's VIN and Manufacturer boxes empty. Grouping rows off
+// raw image coordinates found a COLUMN of labels - VIN, MM, MAX, BODY, TOTAL -
+// so no label ever shared a row with its value.
+describe('the sideways scan that came back blank', () => {
+  const degraded = JSON.parse(
+    readFileSync(new URL('./fixtures/plate-vision-degraded.json', import.meta.url), 'utf8')
+  );
+
+  const rotate = (json, deg) => {
+    const r = (deg * Math.PI) / 180;
+    const cos = Math.cos(r);
+    const sin = Math.sin(r);
+    const out = structuredClone(json);
+    for (const a of out.responses[0].textAnnotations) {
+      if (!a.boundingPoly) continue;
+      a.boundingPoly.vertices = a.boundingPoly.vertices.map(({ x, y }) => ({
+        x: Math.round(x * cos - y * sin),
+        y: Math.round(x * sin + y * cos),
+      }));
+    }
+    return out;
+  };
+
+  it.each([90, -90, 180])('fills VIN and manufacturer at %s degrees', (deg) => {
+    const r = parsePlate(rotate(degraded, deg));
+    expect(r.fields.vin).toBe('R33PD1349TA260019');
+    expect(r.vinCheck.ok).toBe(true);
+    expect(r.fields.manufacturer).toBe('Breath Trailer');
+  });
+
+  it('finds the VIN even if the rotation logic itself were to fail', () => {
+    // Belt and braces: the check-digit search does not use geometry at all, so
+    // it still finds the VIN in a response with no usable boxes whatsoever.
+    const flat = {
+      responses: [{ textAnnotations: [
+        { description: 'whole text' },
+        ...degraded.responses[0].textAnnotations.slice(1).map((a) => ({
+          description: a.description,
+          boundingPoly: { vertices: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }] },
+        })),
+      ] }],
+    };
+    expect(parsePlate(flat).fields.vin).toBe('R33PD1349TA260019');
+  });
+});
