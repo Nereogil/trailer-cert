@@ -52,8 +52,32 @@ even for the free allowance. This is the first wall a new key hits; the error
 reads `PERMISSION_DENIED ... requires billing to be enabled`. Enable it at
 **Billing** in the Cloud console and attach a payment method.
 
-Once it is on, the first **1,000 images each month are free**. At thirty-odd
-trailers a month you will not be charged.
+## What it costs
+
+Nothing, at this volume.
+
+- The first **1,000 units per month are free, permanently** — an ongoing free
+  tier, not a trial allowance.
+- There is **no subscription and no monthly minimum**. Enabling billing attaches
+  a payment method; it does not create a charge.
+- Beyond the free tier: **$1.50 per 1,000 units**.
+
+One scan is one image times one feature = **1 unit**. Thirty trailers a month is
+about 30 units. It would take roughly 2,000 units in a month — some twenty times
+the expected usage — before the first $1.50 appeared.
+
+Two things to keep in mind:
+
+- **Billing applies to the whole project, not just Vision.** Keep this project
+  for Vision alone. A VM or database started in it bills normally.
+- **Vision's quota cannot be capped as a safety net.** Its quotas can only be
+  raised, not lowered below the defaults, and there is no daily quota metric for
+  standard Vision calls. A budget alert (Billing → Budgets & alerts, set at $1)
+  gives early warning, but it notifies rather than stopping anything.
+
+The key itself is never in this repository or on the published site — it is
+typed into Setup once and lives in that phone's local storage. Restricting it by
+referrer is defence in depth for if it leaks some other way.
 
 **Restrict the key.** The site is public, so add an **Application restriction →
 HTTP referrers** for `https://nereogil.github.io/trailer-cert/*`. Without it,
