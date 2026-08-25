@@ -1,8 +1,16 @@
-// Cache-first for the app shell so the whole thing opens with no signal. The
-// only network call the app makes is to Google Vision, and that must never be
-// cached: a stale OCR result would be worse than an honest error.
+// The app shell is precached so the whole thing opens with no signal, and
+// served stale-while-revalidate: the cached copy answers immediately, and a
+// fresh copy is fetched in the background for next time.
+//
+// The first version of this was plain cache-first, which meant an installed
+// phone kept serving the same code forever - a fix could be deployed and never
+// arrive. Stale-while-revalidate keeps the instant, offline-capable open while
+// letting updates land on their own, one launch behind.
+//
+// The only outbound call the app makes is to Google Vision, and that must never
+// be cached: a stale OCR result would be worse than an honest error.
 
-const CACHE_VERSION = 'trailer-cert-v1';
+const CACHE_VERSION = 'trailer-cert-v2';
 
 const SHELL = [
   './',
@@ -59,18 +67,27 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   event.respondWith(
-    caches.match(event.request).then((hit) => {
-      if (hit) return hit;
-      return fetch(event.request)
+    caches.open(CACHE_VERSION).then(async (cache) => {
+      const hit = await cache.match(event.request);
+
+      // Refresh in the background whether or not the cache had an answer, so a
+      // deployed fix reaches an installed phone without anyone reinstalling.
+      const fresh = fetch(event.request)
         .then((response) => {
-          // Keep anything else the app pulls from its own origin.
           if (response.ok && response.type === 'basic') {
-            const copy = response.clone();
-            caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, copy));
+            cache.put(event.request, response.clone());
           }
           return response;
         })
-        .catch(() => caches.match('./index.html'));
+        .catch(() => null);
+
+      if (hit) {
+        event.waitUntil(fresh);
+        return hit;
+      }
+
+      const response = await fresh;
+      return response ?? (await cache.match('./index.html')) ?? Response.error();
     })
   );
 });
