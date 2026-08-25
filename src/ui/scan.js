@@ -94,6 +94,7 @@ function blankParse() {
     },
     vinCheck: validateVin(''),
     vinSuggestion: null,
+    warnings: [],
     rawText: '',
   };
 }
@@ -290,7 +291,16 @@ function showConfirm(container, parsed, file, ctx) {
       overrideWrap,
       duplicateWarning,
 
+      ...(parsed.warnings?.length
+        ? [el('div', { class: 'callout warn' }, [
+            el('div', { text: 'Check these before saving:' }),
+            el('ul', { style: 'margin:6px 0 0;padding-left:18px' },
+              parsed.warnings.map((w) => el('li', { text: w }))),
+          ])]
+        : []),
+
       el('h3', { text: 'Plate details' }),
+      el('p', { class: 'hint', style: 'margin-top:0' , text: 'The camera misses figures on a shiny plate. Compare these against the plate itself.' }),
       plateField('Manufacturer', 'manufacturer'),
       el('div', { class: 'grid-2' }, [
         plateField('ATM (kg)', 'atmKg', { inputmode: 'numeric' }),

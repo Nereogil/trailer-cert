@@ -1,0 +1,67 @@
+{
+  "_comment": "Modelled on the FIRST REAL SCAN of a compliance plate, which came back noticeably worse than the clean fixture: GTM's label read as 'GL' and its value as 1300 (the plate says 1380), and the values for MM, YY and MAX SPEED were not detected at all. The maker's web address, the CE/ISO marks and the compliance paragraph were detected and must not be mistaken for field values. Boxes are reconstructed to match that reading; the token list mirrors the real one.",
+  "responses": [
+    {
+      "textAnnotations": [
+        { "description": "breathtrailer.com MANUFACTURER Breath Trailer R33PD1349TA260019 CE ISO9001-2008 VIN NUMBER BODY SIZE 290X150X136 CM ATM 1500 KGS TOTAL SIZE 435*150*186 CM GL 1300 KGS MM TARE WEIGHT 732 KGS W AXLE GROUP LOAD CAPACITY MAX SPEED KM/H 1500 KGS THE TRAILER IS MANUFACTURED TO COMPLY WITH THE ROAD VEHICLE STANDARDS ACT 2018 AND RELEVANT ADRs." },
+
+        { "description": "breathtrailer.com", "boundingPoly": { "vertices": [{"x":40,"y":40},{"x":250,"y":40},{"x":250,"y":70},{"x":40,"y":70}] } },
+        { "description": "CE", "boundingPoly": { "vertices": [{"x":700,"y":40},{"x":740,"y":40},{"x":740,"y":70},{"x":700,"y":70}] } },
+        { "description": "ISO9001-2008", "boundingPoly": { "vertices": [{"x":760,"y":40},{"x":960,"y":40},{"x":960,"y":70},{"x":760,"y":70}] } },
+
+        { "description": "MANUFACTURER", "boundingPoly": { "vertices": [{"x":40,"y":100},{"x":230,"y":100},{"x":230,"y":130},{"x":40,"y":130}] } },
+        { "description": "Breath", "boundingPoly": { "vertices": [{"x":250,"y":100},{"x":330,"y":100},{"x":330,"y":130},{"x":250,"y":130}] } },
+        { "description": "Trailer", "boundingPoly": { "vertices": [{"x":340,"y":100},{"x":420,"y":100},{"x":420,"y":130},{"x":340,"y":130}] } },
+
+        { "description": "VIN", "boundingPoly": { "vertices": [{"x":40,"y":160},{"x":90,"y":160},{"x":90,"y":190},{"x":40,"y":190}] } },
+        { "description": "NUMBER", "boundingPoly": { "vertices": [{"x":100,"y":160},{"x":190,"y":160},{"x":190,"y":190},{"x":100,"y":190}] } },
+        { "description": "R33PD1349TA260019", "boundingPoly": { "vertices": [{"x":250,"y":160},{"x":560,"y":160},{"x":560,"y":190},{"x":250,"y":190}] } },
+
+        { "description": "BODY", "boundingPoly": { "vertices": [{"x":40,"y":220},{"x":110,"y":220},{"x":110,"y":250},{"x":40,"y":250}] } },
+        { "description": "SIZE", "boundingPoly": { "vertices": [{"x":120,"y":220},{"x":185,"y":220},{"x":185,"y":250},{"x":120,"y":250}] } },
+        { "description": "290X150X136", "boundingPoly": { "vertices": [{"x":250,"y":220},{"x":420,"y":220},{"x":420,"y":250},{"x":250,"y":250}] } },
+        { "description": "CM", "boundingPoly": { "vertices": [{"x":440,"y":220},{"x":480,"y":220},{"x":480,"y":250},{"x":440,"y":250}] } },
+        { "description": "ATM", "boundingPoly": { "vertices": [{"x":560,"y":220},{"x":615,"y":220},{"x":615,"y":250},{"x":560,"y":250}] } },
+        { "description": "1500", "boundingPoly": { "vertices": [{"x":900,"y":220},{"x":965,"y":220},{"x":965,"y":250},{"x":900,"y":250}] } },
+        { "description": "KGS", "boundingPoly": { "vertices": [{"x":985,"y":220},{"x":1035,"y":220},{"x":1035,"y":250},{"x":985,"y":250}] } },
+
+        { "description": "TOTAL", "boundingPoly": { "vertices": [{"x":40,"y":280},{"x":120,"y":280},{"x":120,"y":310},{"x":40,"y":310}] } },
+        { "description": "SIZE", "boundingPoly": { "vertices": [{"x":130,"y":280},{"x":195,"y":280},{"x":195,"y":310},{"x":130,"y":310}] } },
+        { "description": "435*150*186", "boundingPoly": { "vertices": [{"x":250,"y":280},{"x":420,"y":280},{"x":420,"y":310},{"x":250,"y":310}] } },
+        { "description": "CM", "boundingPoly": { "vertices": [{"x":440,"y":280},{"x":480,"y":280},{"x":480,"y":310},{"x":440,"y":310}] } },
+        { "description": "GL", "boundingPoly": { "vertices": [{"x":560,"y":280},{"x":610,"y":280},{"x":610,"y":310},{"x":560,"y":310}] } },
+        { "description": "1300", "boundingPoly": { "vertices": [{"x":900,"y":280},{"x":965,"y":280},{"x":965,"y":310},{"x":900,"y":310}] } },
+        { "description": "KGS", "boundingPoly": { "vertices": [{"x":985,"y":280},{"x":1035,"y":280},{"x":1035,"y":310},{"x":985,"y":310}] } },
+
+        { "description": "MM", "boundingPoly": { "vertices": [{"x":40,"y":340},{"x":85,"y":340},{"x":85,"y":370},{"x":40,"y":370}] } },
+        { "description": "TARE", "boundingPoly": { "vertices": [{"x":560,"y":340},{"x":630,"y":340},{"x":630,"y":370},{"x":560,"y":370}] } },
+        { "description": "WEIGHT", "boundingPoly": { "vertices": [{"x":640,"y":340},{"x":745,"y":340},{"x":745,"y":370},{"x":640,"y":370}] } },
+        { "description": "732", "boundingPoly": { "vertices": [{"x":900,"y":340},{"x":950,"y":340},{"x":950,"y":370},{"x":900,"y":370}] } },
+        { "description": "KGS", "boundingPoly": { "vertices": [{"x":985,"y":340},{"x":1035,"y":340},{"x":1035,"y":370},{"x":985,"y":370}] } },
+
+        { "description": "W", "boundingPoly": { "vertices": [{"x":250,"y":400},{"x":275,"y":400},{"x":275,"y":430},{"x":250,"y":430}] } },
+        { "description": "AXLE", "boundingPoly": { "vertices": [{"x":560,"y":400},{"x":630,"y":400},{"x":630,"y":430},{"x":560,"y":430}] } },
+        { "description": "GROUP", "boundingPoly": { "vertices": [{"x":640,"y":400},{"x":730,"y":400},{"x":730,"y":430},{"x":640,"y":430}] } },
+        { "description": "LOAD", "boundingPoly": { "vertices": [{"x":740,"y":400},{"x":810,"y":400},{"x":810,"y":430},{"x":740,"y":430}] } },
+        { "description": "CAPACITY", "boundingPoly": { "vertices": [{"x":820,"y":400},{"x":950,"y":400},{"x":950,"y":430},{"x":820,"y":430}] } },
+
+        { "description": "MAX", "boundingPoly": { "vertices": [{"x":40,"y":460},{"x":100,"y":460},{"x":100,"y":490},{"x":40,"y":490}] } },
+        { "description": "SPEED", "boundingPoly": { "vertices": [{"x":110,"y":460},{"x":195,"y":460},{"x":195,"y":490},{"x":110,"y":490}] } },
+        { "description": "KM/H", "boundingPoly": { "vertices": [{"x":440,"y":460},{"x":510,"y":460},{"x":510,"y":490},{"x":440,"y":490}] } },
+        { "description": "1500", "boundingPoly": { "vertices": [{"x":900,"y":460},{"x":965,"y":460},{"x":965,"y":490},{"x":900,"y":490}] } },
+        { "description": "KGS", "boundingPoly": { "vertices": [{"x":985,"y":460},{"x":1035,"y":460},{"x":1035,"y":490},{"x":985,"y":490}] } },
+
+        { "description": "THE", "boundingPoly": { "vertices": [{"x":40,"y":530},{"x":85,"y":530},{"x":85,"y":555},{"x":40,"y":555}] } },
+        { "description": "TRAILER", "boundingPoly": { "vertices": [{"x":95,"y":530},{"x":190,"y":530},{"x":190,"y":555},{"x":95,"y":555}] } },
+        { "description": "IS", "boundingPoly": { "vertices": [{"x":200,"y":530},{"x":225,"y":530},{"x":225,"y":555},{"x":200,"y":555}] } },
+        { "description": "MANUFACTURED", "boundingPoly": { "vertices": [{"x":235,"y":530},{"x":420,"y":530},{"x":420,"y":555},{"x":235,"y":555}] } },
+        { "description": "STANDARDS", "boundingPoly": { "vertices": [{"x":430,"y":530},{"x":560,"y":530},{"x":560,"y":555},{"x":430,"y":555}] } },
+        { "description": "ACT", "boundingPoly": { "vertices": [{"x":570,"y":530},{"x":615,"y":530},{"x":615,"y":555},{"x":570,"y":555}] } },
+        { "description": "2018", "boundingPoly": { "vertices": [{"x":625,"y":530},{"x":685,"y":530},{"x":685,"y":555},{"x":625,"y":555}] } },
+        { "description": "AND", "boundingPoly": { "vertices": [{"x":695,"y":530},{"x":745,"y":530},{"x":745,"y":555},{"x":695,"y":555}] } },
+        { "description": "RELEVANT", "boundingPoly": { "vertices": [{"x":755,"y":530},{"x":870,"y":530},{"x":870,"y":555},{"x":755,"y":555}] } },
+        { "description": "ADRs.", "boundingPoly": { "vertices": [{"x":880,"y":530},{"x":940,"y":530},{"x":940,"y":555},{"x":880,"y":555}] } }
+      ]
+    }
+  ]
+}

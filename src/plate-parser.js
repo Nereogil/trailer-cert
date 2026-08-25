@@ -64,30 +64,64 @@ export function groupIntoLines(tokens) {
 }
 
 // Longest phrases first so "TOTAL SIZE" is claimed before a bare "SIZE" can be.
+//
+// `alts` holds label spellings seen coming back from real scans of an engraved,
+// glossy plate. The first live scan returned GTM as "GL", which an exact match
+// missed entirely. Aliases are listed explicitly rather than matched by edit
+// distance, because ATM and GTM are one character apart and a fuzzy match would
+// happily swap the two weights.
 const LABELS = [
   { key: 'axleCapacityKg', words: ['AXLE', 'GROUP', 'LOAD', 'CAPACITY'], type: 'int', below: true },
-  { key: 'tareKg', words: ['TARE', 'WEIGHT'], type: 'int' },
-  { key: 'maxSpeedKmh', words: ['MAX', 'SPEED'], type: 'int' },
+  { key: 'tareKg', words: ['TARE', 'WEIGHT'], type: 'int', alts: [['TARE', 'WEICHT'], ['TARE', 'WEIGH']] },
+  { key: 'maxSpeedKmh', words: ['MAX', 'SPEED'], type: 'int', alts: [['MAX', 'SPEEO'], ['MAX', 'SPFED']] },
   { key: 'totalSizeCm', words: ['TOTAL', 'SIZE'], type: 'text' },
   { key: 'bodySizeCm', words: ['BODY', 'SIZE'], type: 'text' },
-  { key: 'vin', words: ['VIN', 'NUMBER'], type: 'vin' },
+  { key: 'vin', words: ['VIN', 'NUMBER'], type: 'vin', alts: [['VIN', 'NUMBFR'], ['VIN', 'NO']] },
   { key: 'manufacturer', words: ['MANUFACTURER'], type: 'text' },
-  { key: 'atmKg', words: ['ATM'], type: 'int' },
-  { key: 'gtmKg', words: ['GTM'], type: 'int' },
+  { key: 'atmKg', words: ['ATM'], type: 'int', alts: [['ATN'], ['AIM'], ['A1M']] },
+  { key: 'gtmKg', words: ['GTM'], type: 'int', alts: [['GL'], ['GTN'], ['G1M'], ['GIM'], ['CTM'], ['6TM'], ['GTIM']] },
   { key: 'mm', words: ['MM'], type: 'text' },
   { key: 'yy', words: ['YY'], type: 'text' },
 ];
 
 const UNITS = new Set(['CM', 'KG', 'KGS', 'KM/H', 'KM', 'H', 'MM']);
 
+// Marks printed on the plate that are never a field value: the maker's web
+// address and the CE / ISO certification stamps, which sit near the top and can
+// otherwise be swallowed into the manufacturer field.
+//
+// Deliberately narrow. An earlier attempt also blacklisted the words in the
+// compliance paragraph along the bottom ("THE TRAILER IS MANUFACTURED TO
+// COMPLY WITH..."), which promptly ate the "Trailer" out of "Breath Trailer".
+// The paragraph needs no special handling anyway: it sits on its own lines with
+// no labels, so no value run ever reaches it.
+const NOISE = [
+  /^[A-Z0-9-]+\.(COM|COM\.AU|NET|ORG)$/,
+  /^ISO\d/,
+  /^CE$/,
+];
+
 const cleanWord = (text) => text.toUpperCase().replace(/[^A-Z/]/g, '');
 
-function matchesLabelAt(line, index, words) {
+function isNoise(token) {
+  const raw = token.text.toUpperCase();
+  return NOISE.some((re) => re.test(raw));
+}
+
+function matchesWords(line, index, words) {
   for (let k = 0; k < words.length; k++) {
     const token = line[index + k];
     if (!token || cleanWord(token.text) !== words[k]) return false;
   }
   return true;
+}
+
+function matchesLabelAt(line, index, label) {
+  if (matchesWords(line, index, label.words)) return label.words.length;
+  for (const alt of label.alts ?? []) {
+    if (matchesWords(line, index, alt)) return alt.length;
+  }
+  return 0;
 }
 
 // Record every label with the token span it consumed, so value extraction can
@@ -101,9 +135,10 @@ function locateLabels(lines) {
       if (found.some((f) => f.key === label.key)) continue;
       for (let i = 0; i < line.length; i++) {
         if (claimed.has(i)) continue;
-        if (!matchesLabelAt(line, i, label.words)) continue;
+        const matchedLength = matchesLabelAt(line, i, label);
+        if (matchedLength === 0) continue;
 
-        const end = i + label.words.length - 1;
+        const end = i + matchedLength - 1;
         for (let k = i; k <= end; k++) claimed.add(k);
         found.push({
           key: label.key,
@@ -131,7 +166,7 @@ function valueTokens(lines, label, allLabels, claimed) {
   if (!line) return [];
 
   const usable = (token) =>
-    !claimed.has(token) && !UNITS.has(cleanWord(token.text));
+    !claimed.has(token) && !UNITS.has(cleanWord(token.text)) && !isNoise(token);
 
   if (label.below) {
     // AXLE GROUP LOAD CAPACITY is the one label whose value is printed on the
@@ -151,6 +186,7 @@ function valueTokens(lines, label, allLabels, claimed) {
   for (const token of line.slice(label.endIndex + 1, stopIndex)) {
     if (claimed.has(token)) break;
     if (UNITS.has(cleanWord(token.text))) continue;
+    if (isNoise(token)) continue;
     run.push(token);
   }
   return run;
@@ -210,6 +246,44 @@ export function parsePlate(response) {
     fields,
     vinCheck: validateVin(fields.vin ?? ''),
     vinSuggestion: fields.vin ? suggestVinFix(fields.vin) : null,
+    warnings: plateWarnings(fields),
     rawText: response?.responses?.[0]?.textAnnotations?.[0]?.description ?? '',
   };
+}
+
+// A compliance plate's weights are related, so some misreads are catchable even
+// though the figure itself looks perfectly ordinary. The first live scan read
+// GTM as 1300 when the plate says 1380 - nothing here would catch that, which is
+// exactly why these are warnings on a form the user confirms rather than
+// anything automatic.
+export function plateWarnings(fields) {
+  const warnings = [];
+  const { atmKg, gtmKg, tareKg, axleCapacityKg, mm, yy, maxSpeedKmh, vin, manufacturer } = fields;
+
+  const missing = [
+    ['VIN', vin], ['Manufacturer', manufacturer],
+    ['ATM', atmKg], ['GTM', gtmKg], ['Tare', tareKg], ['Axle capacity', axleCapacityKg],
+    ['Month', mm], ['Year', yy], ['Max speed', maxSpeedKmh],
+  ].filter(([, v]) => v === null || v === undefined || v === '').map(([n]) => n);
+
+  if (missing.length) {
+    warnings.push(`Not read from the plate: ${missing.join(', ')}. Type these in.`);
+  }
+
+  if (atmKg && gtmKg && gtmKg > atmKg) {
+    warnings.push(`GTM (${gtmKg}) is above ATM (${atmKg}), which should not happen. Check both.`);
+  }
+  if (gtmKg && tareKg && tareKg > gtmKg) {
+    warnings.push(`Tare (${tareKg}) is above GTM (${gtmKg}), which should not happen. Check both.`);
+  }
+  for (const [name, value] of [['ATM', atmKg], ['GTM', gtmKg], ['Tare', tareKg], ['Axle capacity', axleCapacityKg]]) {
+    if (value !== null && value !== undefined && (value < 50 || value > 10000)) {
+      warnings.push(`${name} reads ${value} kg, which is outside the range a camper trailer plate should show.`);
+    }
+  }
+  if (yy && !/^(19|20)\d{2}$/.test(String(yy))) {
+    warnings.push(`Year reads "${yy}", which is not a four-digit year.`);
+  }
+
+  return warnings;
 }

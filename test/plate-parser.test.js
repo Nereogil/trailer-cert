@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { parsePlate, tokensFromVisionResponse, groupIntoLines } from '../src/plate-parser.js';
+import { parsePlate, tokensFromVisionResponse, groupIntoLines, plateWarnings } from '../src/plate-parser.js';
 
 const response = JSON.parse(
   readFileSync(new URL('./fixtures/plate-vision-response.json', import.meta.url), 'utf8')
@@ -117,5 +117,100 @@ describe('parsePlate', () => {
     expect(r.vinCheck.ok).toBe(false);
     expect(r.vinCheck.reason).toBe('checkdigit');
     expect(r.vinSuggestion).toBe('R33PD1347TA900017');
+  });
+});
+
+// Modelled on the first real scan, which was markedly worse than the clean
+// fixture. The point of these is not that the parser recovers everything - it
+// cannot - but that it degrades honestly: right values or nothing, never a
+// confident wrong one, and always a warning naming what is missing.
+describe('parsePlate on a degraded real-world scan', () => {
+  const degraded = JSON.parse(
+    readFileSync(new URL('./fixtures/plate-vision-degraded.json', import.meta.url), 'utf8')
+  );
+  const r = parsePlate(degraded);
+
+  it('still reads the VIN correctly and verifies it', () => {
+    expect(r.fields.vin).toBe('R33PD1349TA260019');
+    expect(r.vinCheck.ok).toBe(true);
+  });
+
+  it('recovers GTM even though its label was read as "GL"', () => {
+    expect(r.fields.gtmKg).toBe(1300);
+  });
+
+  it('keeps the fields that did survive', () => {
+    expect(r.fields.atmKg).toBe(1500);
+    expect(r.fields.tareKg).toBe(732);
+    expect(r.fields.axleCapacityKg).toBe(1500);
+    expect(r.fields.bodySizeCm).toBe('290X150X136');
+    expect(r.fields.totalSizeCm).toBe('435*150*186');
+    expect(r.fields.manufacturer).toBe('Breath Trailer');
+  });
+
+  it('leaves undetected fields null rather than inventing them', () => {
+    // The values for these were never detected by the OCR at all.
+    expect(r.fields.yy).toBe(null);
+    expect(r.fields.maxSpeedKmh).toBe(null);
+  });
+
+  it('does not swallow the maker web address or the compliance paragraph', () => {
+    const values = Object.values(r.fields).filter((v) => typeof v === 'string');
+    for (const v of values) {
+      expect(v).not.toMatch(/breathtrailer\.com|ISO9001|MANUFACTURED|STANDARDS|ADRs/i);
+    }
+    expect(r.fields.manufacturer).toBe('Breath Trailer');
+  });
+
+  it('does not let the compliance paragraph year become the build year', () => {
+    // "ACT 2018" sits on the plate; YY must not pick it up.
+    expect(r.fields.yy).not.toBe('2018');
+  });
+
+  it('warns about every field it could not read', () => {
+    const joined = r.warnings.join(' ');
+    expect(joined).toMatch(/Year/);
+    expect(joined).toMatch(/Month/);
+    expect(joined).toMatch(/Type these in/);
+  });
+});
+
+describe('plateWarnings', () => {
+  // A plate that read perfectly. Each case below changes one thing, so a test
+  // about ordering is not also a test about missing fields.
+  const CLEAN = {
+    vin: 'R33PD1347TA900017', manufacturer: 'Breath Trailer',
+    atmKg: 1500, gtmKg: 1380, tareKg: 732, axleCapacityKg: 1500,
+    mm: '04', yy: '2026', maxSpeedKmh: 80,
+  };
+
+  it('flags GTM above ATM', () => {
+    const w = plateWarnings({ ...CLEAN, gtmKg: 1600 });
+    expect(w.join(' ')).toMatch(/GTM \(1600\) is above ATM/);
+  });
+
+  it('flags tare above GTM', () => {
+    const w = plateWarnings({ ...CLEAN, tareKg: 1400 });
+    expect(w.join(' ')).toMatch(/Tare \(1400\) is above GTM/);
+  });
+
+  it('flags a weight outside a believable range', () => {
+    const w = plateWarnings({ ...CLEAN, atmKg: 150000 });
+    expect(w.join(' ')).toMatch(/outside the range/);
+  });
+
+  it('flags a year that is not a year', () => {
+    const w = plateWarnings({ ...CLEAN, yy: '20' });
+    expect(w.join(' ')).toMatch(/not a four-digit year/);
+  });
+
+  it('says nothing when the plate reads cleanly', () => {
+    expect(plateWarnings(CLEAN)).toEqual([]);
+  });
+
+  it('cannot catch a plausible-but-wrong figure, and does not pretend to', () => {
+    // The real scan read GTM as 1300 when the plate says 1380. Nothing about
+    // 1300 is suspicious, which is why the confirm screen exists.
+    expect(plateWarnings({ ...CLEAN, gtmKg: 1300 })).toEqual([]);
   });
 });
