@@ -71,6 +71,44 @@ export function numberInput(value, props = {}) {
   });
 }
 
+// A camera button with a quieter "choose an existing photo" underneath.
+//
+// capture="environment" sends Android straight to the camera, which is right
+// when you are standing at a trailer with one hand free. It also removes any
+// way to use a photo that already exists - one taken earlier, or sent over by
+// someone else - and on a desktop with no camera it means nothing at all.
+//
+// Two inputs rather than dropping capture: the one-tap path to the camera
+// stays exactly as it was, and the file picker sits beside it for everything
+// else. Same handler behind both, so callers do not care which was used.
+export function photoInput({ label, onFile, buttonStyle = '', style = '', chooseLabel = 'Choose an existing photo' }) {
+  const pick = (input) => async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    // Cleared before the handler runs, so picking the same file twice in a row
+    // still fires a change event the second time.
+    input.value = '';
+    await onFile(file);
+  };
+
+  const camera = el('input', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true });
+  const existing = el('input', { type: 'file', accept: 'image/*', hidden: true });
+
+  camera.addEventListener('change', pick(camera));
+  existing.addEventListener('change', pick(existing));
+
+  return el('div', { style }, [
+    el('label', { class: 'capture' }, [
+      camera,
+      el('span', { class: 'big-button', style: buttonStyle, text: label }),
+    ]),
+    el('label', { class: 'capture pick-file' }, [
+      existing,
+      el('span', { text: chooseLabel }),
+    ]),
+  ]);
+}
+
 export function formatDate(iso) {
   if (!iso) return '';
   const d = new Date(`${iso}T00:00:00Z`);

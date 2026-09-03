@@ -1,4 +1,4 @@
-import { el, clear, field, textInput, numberInput, toast, debounce, formatDate } from './dom.js';
+import { el, clear, field, textInput, numberInput, toast, debounce, formatDate, photoInput } from './dom.js';
 import { validateVin, normalizeVin } from '../vin.js';
 import { parseTesterScreen } from '../tester-parser.js';
 import { annotatePlate } from '../vision.js';
@@ -352,7 +352,6 @@ async function renderDetail(jobId) {
 // as the plate: the reading lands in the form, and the electrician confirms it.
 // Only the RCD auto table and the low-ohm continuity screen are read.
 function testerScanner(job, saveNow) {
-  const input = el('input', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true });
   const status = el('p', { class: 'hint' });
   const warnBox = el('div');
 
@@ -371,10 +370,7 @@ function testerScanner(job, saveNow) {
     );
   };
 
-  input.addEventListener('change', async () => {
-    const file = input.files?.[0];
-    if (!file) return;
-    input.value = '';
+  const readTester = async (file) => {
     clear(warnBox);
 
     const config = settings.get();
@@ -445,13 +441,14 @@ function testerScanner(job, saveNow) {
       status.className = 'hint error';
       status.textContent = `${err.message} You can type the values in instead.`;
     }
-  });
+  };
 
   return el('div', { style: 'margin-bottom:10px' }, [
-    el('label', { class: 'capture' }, [
-      input,
-      el('span', { class: 'big-button', style: 'min-height:56px;font-size:15px', text: 'Scan tester screen' }),
-    ]),
+    photoInput({
+      label: 'Scan tester screen',
+      buttonStyle: 'min-height:56px;font-size:15px',
+      onFile: readTester,
+    }),
     status,
     warnBox,
   ]);
@@ -559,26 +556,23 @@ async function photoCard(job) {
 
   drawThumbs(photos);
 
-  const makeCapture = (kind, label) => {
-    const input = el('input', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true });
-    input.addEventListener('change', async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      input.value = '';
-      try {
-        await capturePhoto(file, kind, job.id);
-        const fresh = (await db.photosFor(job.id)).sort((a, b) => (a.takenAt < b.takenAt ? -1 : 1));
-        drawThumbs(fresh);
-        toast('Photo added');
-      } catch (err) {
-        toast(`Could not save the photo: ${err.message}`, 'bad');
-      }
+  const makeCapture = (kind, label) =>
+    photoInput({
+      label,
+      style: 'flex:1',
+      buttonStyle: 'min-height:56px;font-size:15px',
+      chooseLabel: 'Choose a file',
+      onFile: async (file) => {
+        try {
+          await capturePhoto(file, kind, job.id);
+          const fresh = (await db.photosFor(job.id)).sort((a, b) => (a.takenAt < b.takenAt ? -1 : 1));
+          drawThumbs(fresh);
+          toast('Photo added');
+        } catch (err) {
+          toast(`Could not save the photo: ${err.message}`, 'bad');
+        }
+      },
     });
-    return el('label', { class: 'capture', style: 'flex:1' }, [
-      input,
-      el('span', { class: 'big-button', style: 'min-height:56px;font-size:15px', text: label }),
-    ]);
-  };
 
   const totalBytes = photos.reduce((sum, p) => sum + (p.bytes ?? 0), 0);
 

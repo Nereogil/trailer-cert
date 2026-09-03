@@ -164,15 +164,43 @@ Each step leaves the app working:
 5. The one-time upload screen for existing data.
 6. Passkey unlock, once PRF is confirmed on both devices.
 
+## The account page
+
+Settled 2026-09-04: this is a personal account screen, not a multi-user admin
+console. One person, one account. It holds:
+
+- Change password (Supabase `auth.updateUser`)
+- Change email (goes through a confirmation mail to the new address)
+- Electrician details — name, licence number, contact phone
+- Customer and site defaults
+- Which devices have a passkey enrolled, and a way to remove one
+
+The electrician and customer details already exist in Setup and live in
+`localStorage` per device. They move to the `user_settings` table so both
+devices agree, and Setup becomes the local view of that synced row.
+
+The Vision API key stays out of it, and stays per-device. Same reasoning as the
+backup zip: it is a billable Google credential and copies of it should be few.
+
+Removing a passkey matters more than it looks. A lost phone is the one case
+where an enrolled passkey is a liability, and revoking it from the laptop needs
+to be possible without a factory reset of anything.
+
+## Settled
+
+- **Windows Hello is available**, so passkeys are enrolled per device, both
+  Windows and Android. PRF still needs verifying on the real hardware before it
+  is relied on — see the passkey section above.
+- **The computer can create jobs**, not just edit them. Sync is symmetric.
+- **Region: Sydney (`ap-southeast-2`).**
+- **Photos can come from the camera or the file picker** on both devices. Done
+  already, ahead of any sync work.
+
 ## Open questions
 
-- **Passkey on both devices, or password on the computer?** Enrolling one per
-  device is the intended path; worth confirming the computer has Windows Hello
-  set up at all.
-- **Should the computer be able to create jobs, or only edit them?** Read-and-
-  edit is simpler and matches how the work actually flows — testing happens on
-  the phone. Creating on the computer is fine to allow, it just widens what sync
-  has to handle.
 - **How long should photos stay on the phone?** Once a job is in the spreadsheet
   and its photos are on the server, the phone could drop the local copies and
   free storage. Not needed now; worth knowing it is available.
+- **What happens to a job created on the computer with no photos?** Nothing
+  technically, but it is worth deciding whether that should be flagged in the
+  list, since a certificate without plate evidence is unusual.

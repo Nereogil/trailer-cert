@@ -1,4 +1,4 @@
-import { el, clear, field, textInput, numberInput, toast, todayIso } from './dom.js';
+import { el, clear, field, textInput, numberInput, toast, todayIso, photoInput } from './dom.js';
 import { annotatePlate } from '../vision.js';
 import { parsePlate } from '../plate-parser.js';
 import { normalizeVin, validateVin, suggestVinFix } from '../vin.js';
@@ -17,22 +17,10 @@ export function mountScan(root, { showTab, updateBadges }) {
 function render(root, ctx) {
   clear(root);
 
-  const fileInput = el('input', {
-    type: 'file',
-    accept: 'image/*',
-    capture: 'environment',
-    hidden: true,
-    id: 'plate-input',
-  });
-
   const hint = el('p', { class: 'hint', text: 'Fill the frame with the plate. Hold steady.' });
   const result = el('div');
 
-  fileInput.addEventListener('change', async () => {
-    const file = fileInput.files?.[0];
-    if (!file) return;
-    fileInput.value = '';
-
+  const readPlate = async (file) => {
     const config = settings.get();
 
     if (!config.visionApiKey) {
@@ -58,15 +46,12 @@ function render(root, ctx) {
       hint.textContent = `${err.message} You can still enter the plate by hand.`;
       showConfirm(result, blankParse(), file, ctx);
     }
-  });
+  };
 
   root.append(
     el('div', { class: 'card' }, [
       el('h2', { text: 'Scan compliance plate' }),
-      el('label', { class: 'capture' }, [
-        fileInput,
-        el('span', { class: 'big-button', text: 'Take photo of plate' }),
-      ]),
+      photoInput({ label: 'Take photo of plate', onFile: readPlate }),
       hint,
       el('div', { class: 'row', style: 'margin-top:10px' }, [
         el('button', {

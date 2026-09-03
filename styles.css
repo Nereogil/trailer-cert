@@ -148,6 +148,21 @@ button.small { min-height: 36px; padding: 7px 10px; font-size: 14px; }
 label.capture { display: block; cursor: pointer; }
 label.capture:active .big-button { border-color: var(--accent); }
 
+/* The quieter half of a photo control: the camera is the big target, picking an
+   existing file is the occasional one. Kept to a full-width tap area so it is
+   still comfortable with gloves on. */
+label.pick-file {
+  display: block;
+  margin-top: 8px;
+  padding: 8px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+}
+label.pick-file:active { opacity: 0.6; }
+
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .row.end { justify-content: flex-end; }
 .spacer { flex: 1; }
