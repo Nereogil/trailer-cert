@@ -222,15 +222,89 @@ describe('a 180 ms reading on the 0 degree row', () => {
   });
 });
 
-describe('the single figure the certificate wants', () => {
-  it('is the slower of the x1 pair', () => {
-    // 25 ms at 0 degrees, 15 ms at 180. The slower one has to meet the limit.
-    expect(parseRcdScreen(RCD).tripTimeMs).toBe(25);
+describe('an angle column the OCR could not read', () => {
+  // The trip time reads perfectly; only the label beside it is mangled. Losing
+  // the row for want of a label put the 180 degree figure on a certificate
+  // while the 0 degree result sat unread, and said nothing about it.
+  const withAngle = (y, text) => {
+    const out = structuredClone(RCD);
+    out.responses[0].textAnnotations.find(
+      (a) => a.boundingPoly && a.boundingPoly.vertices[0].y === y && a.boundingPoly.vertices[0].x === 380
+    ).description = text;
+    return out;
+  };
+
+  it.each([
+    ['a zero read as the letter O', 'O°'],
+    ['a degree sign read as a zero', '00'],
+    ['a bare letter O', 'O'],
+    ['a zero on its own', '0'],
+  ])('still files the 0 degree row when the angle is %s', (_label, text) => {
+    const r = parseRcdScreen(withAngle(400, text));
+    expect(r.x1Zero).toBe(25);
+    expect(r.x1OneEighty).toBe(15);
   });
 
-  it('falls back to whichever half of the pair was read', () => {
+  it('still files the 180 degree row when its zero came back as a letter', () => {
+    const r = parseRcdScreen(withAngle(450, '18O°'));
+    expect(r.x1OneEighty).toBe(15);
+    expect(r.x1Zero).toBe(25);
+  });
+
+  it('falls back to row order when the angle is missing altogether', () => {
+    // The tester always prints 0 above 180 for a given multiplier, so an
+    // unreadable label can be recovered from where the row sits.
+    const r = parseRcdScreen(withAngle(400, ''));
+    expect(r.x1Zero).toBe(25);
+    expect(r.x1OneEighty).toBe(15);
+  });
+
+  it('says so when it had to infer the angle', () => {
+    const r = parseRcdScreen(withAngle(400, ''));
+    expect(r.warnings.join(' ')).toMatch(/angle/i);
+  });
+
+  it('recovers both rows when neither angle reads', () => {
+    let both = withAngle(400, '');
+    both.responses[0].textAnnotations.find(
+      (a) => a.boundingPoly && a.boundingPoly.vertices[0].y === 450 && a.boundingPoly.vertices[0].x === 380
+    ).description = '';
+    const r = parseRcdScreen(both);
+    expect(r.x1Zero).toBe(25);
+    expect(r.x1OneEighty).toBe(15);
+  });
+
+  it('keeps the certificate figure honest when a label was lost', () => {
+    // The whole point: 25 is the slower of the pair and must not be replaced by
+    // 15 just because the 0 degree label was smudged.
+    expect(parseRcdScreen(withAngle(400, 'O°')).tripTimeMs).toBe(25);
+  });
+});
+
+describe('the single figure the certificate wants', () => {
+  it('is the x1 test at 0 degrees', () => {
+    // 25 ms at 0 degrees, 15 ms at 180. The 0 degree figure is the one that
+    // goes on the certificate; 180 inverts phase against neutral, which these
+    // installations never see.
+    const r = parseRcdScreen(RCD);
+    expect(r.tripTimeMs).toBe(25);
+    expect(r.x1OneEighty).toBe(15);
+  });
+
+  it('takes 0 degrees even when 180 read slower', () => {
+    // The case that was being corrected by hand on every job.
+    const slow180 = withRow(RCD, 'x1', 180, '95');
+    const r = parseRcdScreen(slow180);
+    expect(r.x1OneEighty).toBe(95);
+    expect(r.tripTimeMs).toBe(25);
+  });
+
+  it('does not fall back to the 180 degree row', () => {
+    // Better an empty field than a number that has to be corrected by hand.
     const one = parseRcdScreen(withRow(RCD, 'x1', 0, '>2000'));
-    expect(one.tripTimeMs).toBe(15);
+    expect(one.x1OneEighty).toBe(15);
+    expect(one.tripTimeMs).toBe(null);
+    expect(one.warnings.join(' ')).toMatch(/0 degree/);
   });
 
   it('is null when no x1 row was read', () => {

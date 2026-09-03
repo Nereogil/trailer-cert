@@ -400,15 +400,24 @@ function testerScanner(job, saveNow) {
           setField('f-rcd-ms', reading.tripTimeMs);
         }
 
-        // Say which x1 readings it saw, so the single figure in the form can be
-        // checked against the table on the screen without opening the photo.
-        const seen = [reading.x1Zero, reading.x1OneEighty].filter((v) => v !== null);
+        // Say what it saw, so the figure in the form can be checked against the
+        // table on the screen without opening the photo. The 180 degree reading
+        // is shown but named as unused, so a mismatch with the form is not read
+        // as a mistake.
         status.className = 'hint';
-        status.textContent = reading.tripTimeMs !== null
-          ? (seen.length === 2
-              ? `×1 read ${seen[0]} and ${seen[1]} ms; the slower one, ${reading.tripTimeMs} ms, goes on the certificate.`
-              : `×1 read ${reading.tripTimeMs} ms. Check against the screen.`)
-          : 'Could not read the ×1 row.';
+        if (reading.tripTimeMs !== null) {
+          const cross = reading.x1OneEighty !== null
+            ? `; 180° read ${reading.x1OneEighty} ms, not used`
+            : '';
+          status.textContent = `×1 at 0° read ${reading.tripTimeMs} ms${cross}. Check against the screen.`;
+        } else if (reading.x1OneEighty !== null) {
+          status.className = 'hint error';
+          status.textContent =
+            `Only the 180° row read (${reading.x1OneEighty} ms). The certificate takes the 0° figure — type it in.`;
+        } else {
+          status.className = 'hint error';
+          status.textContent = 'Could not read the ×1 row.';
+        }
       } else if (reading.kind === 'continuity') {
         if (reading.ohms !== null) {
           job.tests.earthContinuityOhm = reading.ohms;

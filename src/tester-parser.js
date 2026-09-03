@@ -8,9 +8,11 @@ import { tokensFromVisionResponse, groupIntoLines } from './vision-geometry.js';
 // right row rather than fighting the OCR.
 //
 // Scope is deliberately narrow. The auto test reports six trip times (x1/2, x1
-// and x5, each at 0 and 180 degrees); only the x1 pair is kept, because that is
-// what goes on the certificate. The others are still visible in the photo
-// attached to the job.
+// and x5, each at 0 and 180 degrees); only the x1 pair is kept, and of those
+// the 0 degree reading is the one that goes on the certificate. The 180 degree
+// row inverts phase against neutral, which these installations never see, so it
+// is read for cross-checking only. The rest stay visible in the photo attached
+// to the job.
 
 const NUMBER = /^-?\d+(?:[.,]\d+)?$/;
 
@@ -67,11 +69,18 @@ function findMultiplier(line) {
 // Scanning the rest of the row instead looks fine until a trip time of 180 ms
 // turns up on the 0-degree row: the search finds the "180" of the reading
 // before the "0" of the angle, and files a real result against the wrong phase.
+//
+// The zero of "0°" comes back as a letter O often enough to matter, and the
+// degree sign itself is sometimes read as another zero, so "O°", "0", "00" and
+// "18O°" all have to land on the right angle. Requiring an exact "0" or "180"
+// threw the whole row away for want of a label - the trip time beside it had
+// read perfectly - and said nothing, so the certificate quietly took the other
+// row's figure instead.
 function angleOf(line, fromIndex = 0) {
   for (const token of line.slice(fromIndex, fromIndex + 2)) {
-    const digits = token.text.replace(/[^\d]/g, '');
-    if (digits === '180') return 180;
-    if (digits === '0') return 0;
+    const digits = fixDigits(token.text).replace(/[^\d]/g, '');
+    if (/^180/.test(digits)) return 180;
+    if (/^0+$/.test(digits)) return 0;
   }
   return null;
 }
@@ -151,6 +160,8 @@ export function parseRcdScreen(response) {
 
   let sawHalf = false;
   let halfTripped = false;
+  // x1 rows whose angle column would not read, in the order they appear.
+  const unlabelled = [];
 
   for (const line of lines) {
     const found = findMultiplier(line);
@@ -176,6 +187,22 @@ export function parseRcdScreen(response) {
     if (ms === null) continue;
     if (angle === 180) result.x1OneEighty = ms;
     else if (angle === 0) result.x1Zero = ms;
+    else unlabelled.push(ms);
+  }
+
+  // A trip time whose label would not read is still a real measurement. The
+  // tester prints 0 above 180 for a given multiplier and groupIntoLines returns
+  // rows top to bottom, so the empty half of the pair can be filled from the
+  // order the rows arrived in. Inferred rather than read, so it is called out.
+  for (const ms of unlabelled) {
+    if (result.x1Zero === null) {
+      result.x1Zero = ms;
+      result.warnings.push(
+        `The angle column did not read on an x1 row; ${ms} ms was taken as the 0 degree test. Check it against the photo.`
+      );
+    } else if (result.x1OneEighty === null) {
+      result.x1OneEighty = ms;
+    }
   }
 
   if (sawHalf) result.halfTripped = halfTripped;
@@ -191,10 +218,21 @@ export function parseRcdScreen(response) {
     );
   }
 
-  // The single figure the certificate wants: the slower of the x1 pair, because
-  // that is the one that has to satisfy the limit.
-  const pair = [result.x1Zero, result.x1OneEighty].filter((v) => v !== null);
-  result.tripTimeMs = pair.length ? Math.max(...pair) : null;
+  // The single figure the certificate wants is the x1 test at 0 degrees.
+  //
+  // The 180 degree row inverts phase against neutral, a condition these
+  // installations never see, so it is read for reference and deliberately kept
+  // off the certificate. This used to take the slower of the pair, which put
+  // the 180 figure in the form whenever it read slower and left it to be
+  // corrected by hand on every job.
+  result.tripTimeMs = result.x1Zero;
+
+  if (result.x1Zero === null && result.x1OneEighty !== null) {
+    result.warnings.push(
+      `Only the 180 degree row was read (${result.x1OneEighty} ms). The certificate takes the 0 degree figure, so check the photo and type it in.`
+    );
+  }
+
   if (halfTripped) {
     result.warnings.push('The RCD tripped at half its rated current, which is a fail.');
   }
