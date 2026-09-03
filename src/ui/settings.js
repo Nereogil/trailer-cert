@@ -1,7 +1,8 @@
 import { el, clear, field, textInput, toast, debounce } from './dom.js';
 import * as settings from '../settings.js';
 import * as db from '../db.js';
-import { formatBytes } from '../photos.js';
+import { formatBytes, downloadBlob } from '../photos.js';
+import { buildBackup, backupFilename } from '../backup.js';
 
 // Everything identifying — licence number, customer details, the API key —
 // is typed in here and stays on this phone. None of it is in the repo.
@@ -177,6 +178,61 @@ function render(root, updateBadges) {
     ])
   );
 
+  // --- Backup ---
+
+  const backupNote = el('p', {
+    class: 'hint',
+    text: 'One zip holding every job, every photo and your setup details.',
+  });
+
+  const backupButton = el('button', {
+    class: 'primary wide',
+    type: 'button',
+    text: 'Export everything',
+  });
+
+  backupButton.addEventListener('click', async () => {
+    backupButton.disabled = true;
+    backupNote.className = 'hint working';
+    backupNote.textContent = 'Building the backup…';
+
+    // Zipping is synchronous and holds the thread for a few seconds on a phone
+    // with a lot of photos, so yield first and let the line above paint.
+    // Deliberately setTimeout and not requestAnimationFrame: rAF does not fire
+    // while the page is not painting, so a screen that locks mid-export would
+    // leave this waiting forever with the button stuck disabled.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    try {
+      const { bytes, jobCount, photoCount, madeAt } = await buildBackup();
+      downloadBlob(new Blob([bytes], { type: 'application/zip' }), backupFilename(madeAt));
+
+      backupNote.className = 'hint';
+      backupNote.textContent =
+        `${jobCount} job${jobCount === 1 ? '' : 's'} and ${photoCount} photo${photoCount === 1 ? '' : 's'} — ${formatBytes(bytes.length)}.`;
+      toast('Backup downloaded');
+    } catch (err) {
+      console.error('Could not build the backup', err);
+      backupNote.className = 'hint error';
+      backupNote.textContent = `Could not build the backup: ${err.message}`;
+      toast('Backup failed', 'bad');
+    } finally {
+      backupButton.disabled = false;
+    }
+  });
+
+  root.append(
+    el('div', { class: 'card' }, [
+      el('h2', { text: 'Backup' }),
+      el('p', {
+        class: 'hint',
+        text: 'Everything is held in this browser. Take a copy off the phone regularly — a cleared browser or a lost phone takes the jobs with it.',
+      }),
+      backupButton,
+      backupNote,
+    ])
+  );
+
   // --- Storage ---
 
   const storageLine = el('p', { class: 'hint', text: 'Checking storage…' });
@@ -185,7 +241,7 @@ function render(root, updateBadges) {
     el('div', { class: 'card' }, [
       el('h2', { text: 'Storage' }),
       storageLine,
-      el('p', { class: 'hint', text: 'Jobs and photos live in this browser on this phone. Export the spreadsheet and the photos to keep a copy elsewhere.' }),
+      el('p', { class: 'hint', text: 'Jobs and photos live in this browser on this phone. Export everything above to keep a copy elsewhere.' }),
     ])
   );
 

@@ -11,6 +11,10 @@ Thumbs.db
 # Real job data, photos and certificates stay local
 samples/
 
+# A backup holds every job and every photo. This repo is public.
+trailer-cert-backup-*.zip
+trailer-cert-dump-*.json
+
 # API keys belong in the app, never in the repo
 api.txt
 *.key

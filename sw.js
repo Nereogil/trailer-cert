@@ -10,7 +10,7 @@
 // The only outbound call the app makes is to Google Vision, and that must never
 // be cached: a stale OCR result would be worse than an honest error.
 
-const CACHE_VERSION = 'trailer-cert-v4';
+const CACHE_VERSION = 'trailer-cert-v5';
 
 const SHELL = [
   './',
@@ -35,6 +35,7 @@ const SHELL = [
   './src/db.js',
   './src/settings.js',
   './src/photos.js',
+  './src/backup.js',
   './src/ui/dom.js',
   './src/ui/scan.js',
   './src/ui/jobs.js',
