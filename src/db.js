@@ -1,11 +1,49 @@
-// IndexedDB, hand-wrapped. Two stores: jobs, and photos kept separately so a
-// job can be read and written without dragging several megabytes of image
-// blobs through every save.
+// IndexedDB, hand-wrapped. Three stores: jobs; photos, kept separately so a job
+// can be read and written without dragging several megabytes of image blobs
+// through every save; and sync, which holds the cursors the server exchange
+// needs.
+//
+// Deletes are soft. A job removed on the phone has to stay removed when the
+// laptop next syncs, and a hard delete cannot be told apart from "this row has
+// not arrived yet" - the other device would helpfully push it back. So a delete
+// sets deletedAt and the row stays as a tombstone. The photo blob is dropped at
+// the same time, because the tombstone is what sync needs and the megabytes are
+// not.
 
 const DB_NAME = 'trailer-cert';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise = null;
+
+// Everything already on this device predates the server, so all of it is unsent.
+// Marking it here is what makes the first sync upload the whole logbook rather
+// than quietly ignoring every job recorded before today.
+function markExistingUnsent(transaction) {
+  transaction.objectStore('jobs').openCursor().onsuccess = (event) => {
+    const cursor = event.target.result;
+    if (!cursor) return;
+    const job = cursor.value;
+    if (job.dirty === undefined) {
+      job.dirty = true;
+      job.syncedAt = null;
+      job.deletedAt = job.deletedAt ?? null;
+      cursor.update(job);
+    }
+    cursor.continue();
+  };
+
+  transaction.objectStore('photos').openCursor().onsuccess = (event) => {
+    const cursor = event.target.result;
+    if (!cursor) return;
+    const photo = cursor.value;
+    if (photo.uploaded === undefined) {
+      photo.uploaded = false;
+      photo.deletedAt = photo.deletedAt ?? null;
+      cursor.update(photo);
+    }
+    cursor.continue();
+  };
+}
 
 function open() {
   if (dbPromise) return dbPromise;
@@ -13,14 +51,23 @@ function open() {
   dbPromise = new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-    request.onupgradeneeded = () => {
+    request.onupgradeneeded = (event) => {
       const db = request.result;
+
       if (!db.objectStoreNames.contains('jobs')) {
         db.createObjectStore('jobs', { keyPath: 'id' });
       }
       if (!db.objectStoreNames.contains('photos')) {
         const store = db.createObjectStore('photos', { keyPath: 'id' });
         store.createIndex('jobId', 'jobId', { unique: false });
+      }
+
+      if (event.oldVersion < 2) {
+        if (!db.objectStoreNames.contains('sync')) {
+          db.createObjectStore('sync', { keyPath: 'key' });
+        }
+        // oldVersion 0 is a brand new database, with nothing in it to mark.
+        if (event.oldVersion >= 1) markExistingUnsent(request.transaction);
       }
     };
 
@@ -76,27 +123,89 @@ export function emptyJob() {
     installType: '',
     ecert: 'N',
     status: 'draft',
+    // Sync bookkeeping. dirty means "this device has changes the server has not
+    // seen yet"; syncedAt is the server clock value the row was last seen at.
+    dirty: true,
+    syncedAt: null,
+    deletedAt: null,
   };
 }
 
+const live = (rows) => rows.filter((row) => !row.deletedAt);
+
+// Every local edit marks the row unsent. Rows arriving from the server go
+// through putJobFromServer instead, or one would immediately look like a local
+// change and be pushed straight back up again.
 export const putJob = (job) =>
-  run('jobs', 'readwrite', (store) => store.put({ ...job, updatedAt: new Date().toISOString() }));
+  run('jobs', 'readwrite', (store) =>
+    store.put({ ...job, updatedAt: new Date().toISOString(), dirty: true })
+  );
+
+export const putJobFromServer = (job) =>
+  run('jobs', 'readwrite', (store) => store.put({ ...job, dirty: false }));
 
 export const getJob = (id) => run('jobs', 'readonly', (store) => store.get(id));
-export const allJobs = () => run('jobs', 'readonly', (store) => store.getAll());
-export const deleteJob = (id) => run('jobs', 'readwrite', (store) => store.delete(id));
 
-export const putPhoto = (photo) => run('photos', 'readwrite', (store) => store.put(photo));
-export const deletePhoto = (id) => run('photos', 'readwrite', (store) => store.delete(id));
+export const allJobs = () =>
+  run('jobs', 'readonly', (store) => store.getAll()).then(live);
+
+// Tombstones included. Sync needs them; nothing else does.
+export const allJobsWithDeleted = () => run('jobs', 'readonly', (store) => store.getAll());
+
+export const dirtyJobs = () =>
+  run('jobs', 'readonly', (store) => store.getAll()).then((rows) => rows.filter((r) => r.dirty));
+
+export const putPhoto = (photo) =>
+  run('photos', 'readwrite', (store) => store.put({ uploaded: false, deletedAt: null, ...photo }));
+
+export const putPhotoFromServer = (photo) =>
+  run('photos', 'readwrite', (store) => store.put({ ...photo, uploaded: true }));
+
 export const photosFor = (jobId) =>
-  run('photos', 'readonly', (store) => store.index('jobId').getAll(IDBKeyRange.only(jobId)));
-export const allPhotos = () => run('photos', 'readonly', (store) => store.getAll());
+  run('photos', 'readonly', (store) =>
+    store.index('jobId').getAll(IDBKeyRange.only(jobId))
+  ).then(live);
+
+export const allPhotos = () =>
+  run('photos', 'readonly', (store) => store.getAll()).then(live);
+
+export const allPhotosWithDeleted = () => run('photos', 'readonly', (store) => store.getAll());
+
+// Photos still waiting to go up. One with no blob cannot be uploaded - that is
+// a tombstone whose image has already been dropped - so it stays out of the queue.
+export const pendingPhotos = () =>
+  run('photos', 'readonly', (store) => store.getAll()).then((rows) =>
+    rows.filter((r) => !r.uploaded && !r.deletedAt && r.blob)
+  );
+
+async function softDelete(storeName, id, extra = {}) {
+  const row = await run(storeName, 'readonly', (store) => store.get(id));
+  if (!row) return;
+  await run(storeName, 'readwrite', (store) =>
+    store.put({ ...row, ...extra, deletedAt: new Date().toISOString(), dirty: true })
+  );
+}
+
+// The blob goes now rather than at some later tidy-up: the tombstone is the part
+// sync needs, and on a phone the megabytes are the part worth reclaiming.
+export const deletePhoto = (id) => softDelete('photos', id, { blob: null });
+export const deleteJob = (id) => softDelete('jobs', id);
 
 export async function deleteJobWithPhotos(jobId) {
   const photos = await photosFor(jobId);
   await Promise.all(photos.map((p) => deletePhoto(p.id)));
   await deleteJob(jobId);
 }
+
+// ------------------------------------------------------------------- sync
+
+export const getSyncState = (key) =>
+  run('sync', 'readonly', (store) => store.get(key)).then((row) => row?.value ?? null);
+
+export const setSyncState = (key, value) =>
+  run('sync', 'readwrite', (store) => store.put({ key, value }));
+
+// ------------------------------------------------------------------ storage
 
 export async function estimateUsage() {
   if (!navigator.storage?.estimate) return null;
