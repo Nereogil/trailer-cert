@@ -3,6 +3,9 @@ import * as settings from '../settings.js';
 import * as db from '../db.js';
 import { formatBytes, downloadBlob } from '../photos.js';
 import { buildBackup, backupFilename } from '../backup.js';
+import * as supabase from '../supabase.js';
+import { syncJobs } from '../sync.js';
+import { jobsRemote } from '../remote.js';
 
 // Everything identifying — licence number, customer details, the API key —
 // is typed in here and stays on this phone. None of it is in the repo.
@@ -20,6 +23,101 @@ function render(root, updateBadges) {
     updateBadges?.();
     toast('Saved');
   }, 500);
+
+  // --- Account and sync ---
+  //
+  // Deliberately a card in Setup and not a gate in front of the app. Signing in
+  // adds the server; it does not become a condition of working. A phone in a
+  // yard with no signal, or one whose session has lapsed, still scans plates and
+  // records tests exactly as before.
+
+  const accountCard = el('div', { class: 'card' });
+
+  const renderAccount = () => {
+    clear(accountCard);
+    accountCard.append(el('h2', { text: 'Account' }));
+
+    if (!supabase.isSignedIn()) {
+      const email = el('input', { type: 'email', autocomplete: 'username', placeholder: 'you@example.com', spellcheck: 'false' });
+      // autocomplete set so the password manager fills this. The password is
+      // typed here and goes straight to Supabase; nothing else ever holds it.
+      const password = el('input', { type: 'password', autocomplete: 'current-password' });
+      const status = el('p', { class: 'hint', text: 'Sign in to keep jobs on the server and on both devices.' });
+      const button = el('button', { class: 'primary wide', type: 'button', text: 'Sign in' });
+
+      const attempt = async () => {
+        if (!email.value.trim() || !password.value) {
+          status.className = 'hint error';
+          status.textContent = 'Email and password, please.';
+          return;
+        }
+        button.disabled = true;
+        status.className = 'hint working';
+        status.textContent = 'Signing in…';
+        try {
+          await supabase.signIn(email.value.trim(), password.value);
+          toast('Signed in');
+          renderAccount();
+        } catch (err) {
+          status.className = 'hint error';
+          status.textContent = err.message;
+          button.disabled = false;
+        }
+      };
+
+      button.addEventListener('click', attempt);
+      password.addEventListener('keydown', (e) => { if (e.key === 'Enter') attempt(); });
+
+      accountCard.append(field('Email', email), field('Password', password), button, status);
+      return;
+    }
+
+    const status = el('p', { class: 'hint', text: 'Signed in. Jobs sync when you tap below.' });
+    const syncButton = el('button', { class: 'primary wide', type: 'button', text: 'Sync now' });
+
+    syncButton.addEventListener('click', async () => {
+      syncButton.disabled = true;
+      status.className = 'hint working';
+      status.textContent = 'Syncing…';
+      try {
+        const { pushed, pulled } = await syncJobs(jobsRemote);
+        status.className = 'hint';
+        const held = pushed.deferred ? `, ${pushed.deferred} held for next time` : '';
+        status.textContent = `Sent ${pushed.sent}, received ${pulled.applied}${held}.`;
+        await updateBadges?.();
+        toast('Synced');
+      } catch (err) {
+        console.error('Sync failed', err);
+        status.className = 'hint error';
+        // A failed sync is "not now", never "the row is gone". Nothing local
+        // has been touched, so saying so plainly matters.
+        status.textContent = `${err.message} Nothing was lost — your jobs are still on this device.`;
+      } finally {
+        syncButton.disabled = false;
+      }
+    });
+
+    accountCard.append(
+      el('div', { class: 'callout ok', text: `Signed in as ${supabase.currentEmail() ?? 'this account'}.` }),
+      syncButton,
+      status,
+      el('div', { class: 'row end', style: 'margin-top:10px' }, [
+        el('button', {
+          class: 'small',
+          type: 'button',
+          text: 'Sign out',
+          onClick: async () => {
+            await supabase.signOut();
+            toast('Signed out');
+            renderAccount();
+          },
+        }),
+      ])
+    );
+  };
+
+  renderAccount();
+  root.append(accountCard);
 
   // --- Vision API key ---
 
