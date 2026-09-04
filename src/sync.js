@@ -6,9 +6,10 @@
 // or an account. The Supabase-flavoured `remote` is built elsewhere.
 
 import * as realDb from './db.js';
-import { jobToRow, rowToJob, serverWins } from './sync-mapping.js';
+import { jobToRow, rowToJob, rowToPhoto, serverWins } from './sync-mapping.js';
 
 const JOBS_CURSOR = 'jobs';
+const PHOTOS_CURSOR = 'photos';
 
 const time = (value) => Date.parse(value ?? '') || 0;
 
@@ -96,4 +97,94 @@ export async function pullJobs(remote, local = realDb) {
   if (newest && newest !== cursor) await local.setSyncState(JOBS_CURSOR, newest);
 
   return { applied, keptLocal, echoed, cursor: newest };
+}
+
+// ------------------------------------------------------------------- photos
+
+// Photos are immutable once taken, so there is no conflict to resolve - only
+// the question of whether the bytes have made it up yet, and whether this
+// device happens to hold them.
+export async function syncPhotos(remote, local = realDb) {
+  const pushed = await pushPhotos(remote, local);
+  const pulled = await pullPhotos(remote, local);
+  return { pushed, pulled };
+}
+
+export async function pushPhotos(remote, local = realDb) {
+  const pending = await local.pendingPhotos();
+
+  let sent = 0;
+  let failed = 0;
+
+  for (const photo of pending) {
+    try {
+      // The file goes up before the row that points at it. The other order
+      // leaves a row on the server referring to an image that does not exist,
+      // and the laptop then fails every time it opens that job. This order's
+      // worst case is an uploaded file nobody references yet, which costs a
+      // few hundred kilobytes and nothing else.
+      const stored = await remote.uploadPhoto(photo);
+
+      await local.putPhotoFromServer({
+        ...photo,
+        storagePath: stored.storage_path,
+        syncedAt: stored.server_updated_at,
+        uploaded: true,
+      });
+      sent++;
+    } catch (err) {
+      // One photo that will not go up must not strand the rest of the queue
+      // behind it - a single corrupt image would otherwise stop the whole
+      // logbook backing up, quietly, for ever.
+      console.error(`Photo ${photo.id} did not upload`, err);
+      failed++;
+    }
+  }
+
+  return { sent, failed };
+}
+
+export async function pullPhotos(remote, local = realDb) {
+  const cursor = await local.getSyncState(PHOTOS_CURSOR);
+  const rows = await remote.fetchPhotosSince(cursor);
+
+  let applied = 0;
+  let echoed = 0;
+  let newest = cursor;
+
+  for (const row of rows) {
+    if (time(row.server_updated_at) > time(newest)) newest = row.server_updated_at;
+
+    const existing = await local.getPhoto(row.id);
+    if (existing?.syncedAt && existing.syncedAt === row.server_updated_at) {
+      echoed++;
+      continue;
+    }
+
+    // Rows arrive without an image - that is deliberate, so signing in on the
+    // laptop does not pull forty megabytes down before showing anything. But
+    // the phone that took the photo already holds the bytes, and writing the
+    // incoming null over them would destroy the only copy that has not been
+    // uploaded yet. Keep whatever this device already has.
+    await local.putPhotoFromServer({
+      ...rowToPhoto(row),
+      blob: existing?.blob ?? null,
+    });
+    applied++;
+  }
+
+  if (newest && newest !== cursor) await local.setSyncState(PHOTOS_CURSOR, newest);
+
+  return { applied, echoed, cursor: newest };
+}
+
+// Fetch the image for a photo this device knows about but has never held. Used
+// when a job is opened on a device that did not take its photos.
+export async function ensurePhotoBlob(photo, remote, local = realDb) {
+  if (photo.blob) return photo.blob;
+  if (!photo.storagePath) return null;
+
+  const blob = await remote.downloadPhoto(photo.storagePath);
+  await local.putPhotoFromServer({ ...photo, blob });
+  return blob;
 }

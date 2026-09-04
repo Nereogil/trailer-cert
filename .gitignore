@@ -19,3 +19,5 @@ trailer-cert-dump-*.json
 api.txt
 *.key
 *api*key*
+key.txt
+keys.txt

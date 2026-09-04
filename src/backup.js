@@ -12,7 +12,7 @@ const shortId = (id) => String(id ?? 'unknown').slice(0, 8);
 // plate text, and a job entered by hand may have no VIN yet.
 const folderFor = (job) => `${job.vin || 'no-vin'}-${shortId(job.id)}`;
 
-function readme(jobCount, photoCount, madeAt) {
+function readme(jobCount, photoCount, madeAt, missingImages = 0) {
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
   return [
     'Trailer Cert backup',
@@ -29,6 +29,15 @@ function readme(jobCount, photoCount, madeAt) {
     '',
     'Keep this somewhere off the phone. The app holds everything in the browser,',
     'so a cleared browser or a lost phone takes the lot with it.',
+    ...(missingImages
+      ? [
+          '',
+          `NOTE: ${plural(missingImages, 'photo')} listed on this account had no image`,
+          'on the device that made this backup - they were taken elsewhere and had',
+          'not been downloaded yet. Open those jobs while signed in to pull the',
+          'images down, then take the backup again if you want them included.',
+        ]
+      : []),
   ].join('\n');
 }
 
@@ -49,7 +58,19 @@ export async function assembleBackup({ jobs, photos, settings, madeAt = new Date
   const index = [];
   const entries = {};
 
+  const withoutImage = [];
+
   for (const photo of photos) {
+    // Since sync arrived, a photo can be known about without being held: the
+    // row came down from the server but the image has not been fetched on this
+    // device yet. Reading .arrayBuffer() off that null would throw and take the
+    // whole backup with it - and the backup is the thing you reach for when
+    // everything else has gone wrong, so it has to survive a missing image.
+    if (!photo.blob) {
+      withoutImage.push(photo.id);
+      continue;
+    }
+
     const job = byJob.get(photo.jobId);
     // A photo whose job was deleted still goes in rather than being dropped on
     // the floor; orphans/ makes that obvious when the zip is opened.
@@ -81,18 +102,24 @@ export async function assembleBackup({ jobs, photos, settings, madeAt = new Date
   entries['jobs.json'] = stringToEntry(JSON.stringify(jobs, null, 2));
   entries['photos.json'] = stringToEntry(JSON.stringify(index, null, 2));
   entries['settings.json'] = stringToEntry(JSON.stringify(safeSettings, null, 2));
-  entries['README.txt'] = stringToEntry(readme(jobs.length, index.length, madeAt));
+  entries['README.txt'] = stringToEntry(readme(jobs.length, index.length, madeAt, withoutImage.length));
 
-  return { entries, jobCount: jobs.length, photoCount: index.length, madeAt };
+  return {
+    entries,
+    jobCount: jobs.length,
+    photoCount: index.length,
+    missingImages: withoutImage.length,
+    madeAt,
+  };
 }
 
 export async function buildBackup() {
   const [jobs, photos] = await Promise.all([allJobs(), allPhotos()]);
-  const { entries, jobCount, photoCount, madeAt } = await assembleBackup({
+  const { entries, jobCount, photoCount, missingImages, madeAt } = await assembleBackup({
     jobs,
     photos,
     settings: getSettings(),
   });
 
-  return { bytes: writeEntries(entries), jobCount, photoCount, madeAt };
+  return { bytes: writeEntries(entries), jobCount, photoCount, missingImages, madeAt };
 }

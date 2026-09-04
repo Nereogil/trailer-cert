@@ -4,8 +4,8 @@ import * as db from '../db.js';
 import { formatBytes, downloadBlob } from '../photos.js';
 import { buildBackup, backupFilename } from '../backup.js';
 import * as supabase from '../supabase.js';
-import { syncJobs } from '../sync.js';
-import { jobsRemote } from '../remote.js';
+import { syncJobs, syncPhotos } from '../sync.js';
+import { jobsRemote, photosRemote } from '../remote.js';
 
 // Everything identifying — licence number, customer details, the API key —
 // is typed in here and stays on this phone. None of it is in the repo.
@@ -80,10 +80,25 @@ function render(root, updateBadges) {
       status.className = 'hint working';
       status.textContent = 'Syncing…';
       try {
-        const { pushed, pulled } = await syncJobs(jobsRemote);
+        const jobs = await syncJobs(jobsRemote);
+
+        // Photos are the slow half - megabytes rather than kilobytes - so the
+        // line changes before they start. A button that sits still for a minute
+        // reads as broken.
+        status.textContent = 'Syncing photos…';
+        const photos = await syncPhotos(photosRemote);
+
         status.className = 'hint';
-        const held = pushed.deferred ? `, ${pushed.deferred} held for next time` : '';
-        status.textContent = `Sent ${pushed.sent}, received ${pulled.applied}${held}.`;
+        const held = jobs.pushed.deferred ? `, ${jobs.pushed.deferred} held over` : '';
+        const trouble = photos.pushed.failed
+          ? ` ${photos.pushed.failed} photo${photos.pushed.failed === 1 ? '' : 's'} would not upload — they stay queued.`
+          : '';
+
+        status.textContent =
+          `Jobs: sent ${jobs.pushed.sent}, received ${jobs.pulled.applied}${held}. ` +
+          `Photos: sent ${photos.pushed.sent}, received ${photos.pulled.applied}.${trouble}`;
+
+        if (photos.pushed.failed) status.className = 'hint error';
         await updateBadges?.();
         toast('Synced');
       } catch (err) {

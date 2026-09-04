@@ -145,6 +145,7 @@ export const putJobFromServer = (job) =>
   run('jobs', 'readwrite', (store) => store.put({ ...job, dirty: false }));
 
 export const getJob = (id) => run('jobs', 'readonly', (store) => store.get(id));
+export const getPhoto = (id) => run('photos', 'readonly', (store) => store.get(id));
 
 export const allJobs = () =>
   run('jobs', 'readonly', (store) => store.getAll()).then(live);

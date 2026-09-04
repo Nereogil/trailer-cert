@@ -117,3 +117,40 @@ describe('backupFilename', () => {
     expect(backupFilename('2026-09-03T04:05:06.000Z')).toBe('trailer-cert-backup-2026-09-03.zip');
   });
 });
+
+describe('a backup taken on a device that did not take the photos', () => {
+  // Since sync arrived a photo can be known about without being held: the row
+  // came down but the image is still on the server. The backup is what you
+  // reach for when everything else has gone wrong, so a missing image must not
+  // be able to take the whole thing down with it.
+  const NO_IMAGE = { ...PHOTOS[0], id: 'remote-1', blob: null, storagePath: 'user-9/j/remote-1.jpg' };
+
+  it('does not throw on a photo it has no image for', async () => {
+    await expect(
+      assembleBackup({ jobs: JOBS, photos: [NO_IMAGE], settings: SETTINGS })
+    ).resolves.toBeTruthy();
+  });
+
+  it('still packs every image it does hold', async () => {
+    const built = await assembleBackup({
+      jobs: JOBS,
+      photos: [...PHOTOS, NO_IMAGE],
+      settings: SETTINGS,
+    });
+    expect(built.photoCount).toBe(PHOTOS.length);
+    expect(built.missingImages).toBe(1);
+  });
+
+  it('says so in the readme rather than quietly leaving them out', async () => {
+    const built = await assembleBackup({ jobs: JOBS, photos: [NO_IMAGE], settings: SETTINGS });
+    const readme = entryToString(readEntries(writeEntries(built.entries))['README.txt']);
+    expect(readme).toMatch(/had no image/i);
+    expect(readme).toMatch(/1 photo/);
+  });
+
+  it('says nothing when every image was present', async () => {
+    const built = await assembleBackup({ jobs: JOBS, photos: PHOTOS, settings: SETTINGS });
+    const readme = entryToString(readEntries(writeEntries(built.entries))['README.txt']);
+    expect(readme).not.toMatch(/had no image/i);
+  });
+});

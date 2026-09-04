@@ -1,22 +1,33 @@
 import { describe, it, expect } from 'vitest';
-import { syncJobs, pushJobs, pullJobs } from '../src/sync.js';
+import {
+  syncJobs, pushJobs, pullJobs,
+  pushPhotos, pullPhotos, ensurePhotoBlob,
+} from '../src/sync.js';
 
 // Stand-ins for db.js and the Supabase side. Between them they let the whole
 // cycle run in memory, which is the only way to reach the cases that matter -
 // a row edited mid-push, a clock that disagrees, a conflict - reliably.
 
-function fakeLocal(jobs = [], cursor = null) {
+function fakeLocal(jobs = [], cursor = null, photos = []) {
   const store = new Map(jobs.map((j) => [j.id, structuredClone(j)]));
+  const photoStore = new Map(photos.map((p) => [p.id, { ...p }]));
   const sync = new Map(cursor ? [['jobs', cursor]] : []);
 
   return {
     store,
+    photoStore,
     sync,
     dirtyJobs: async () => [...store.values()].filter((j) => j.dirty).map((j) => structuredClone(j)),
     getJob: async (id) => (store.has(id) ? structuredClone(store.get(id)) : undefined),
     putJobFromServer: async (job) => { store.set(job.id, { ...structuredClone(job), dirty: false }); },
     getSyncState: async (key) => sync.get(key) ?? null,
     setSyncState: async (key, value) => { sync.set(key, value); },
+
+    // Photos are held with a shallow copy: a blob is not structured-cloneable
+    // here and, more to the point, identity is what the blob tests check.
+    pendingPhotos: async () => [...photoStore.values()].filter((p) => !p.uploaded && !p.deletedAt && p.blob),
+    getPhoto: async (id) => (photoStore.has(id) ? { ...photoStore.get(id) } : undefined),
+    putPhotoFromServer: async (photo) => { photoStore.set(photo.id, { ...photo, uploaded: true }); },
   };
 }
 
@@ -275,5 +286,159 @@ describe('a full cycle', () => {
     const after = local.store.get('j1');
     expect(after.vin).toBe('MINEWINS123456789');
     expect(after.dirty).toBe(false);
+  });
+});
+
+// ------------------------------------------------------------------- photos
+
+const photo = (over = {}) => ({
+  id: 'p1',
+  jobId: 'j1',
+  kind: 'plate',
+  caption: '',
+  bytes: 1234,
+  takenAt: '2026-09-01T01:00:00.000Z',
+  blob: { size: 1234, type: 'image/jpeg' },
+  storagePath: null,
+  uploaded: false,
+  deletedAt: null,
+  syncedAt: null,
+  ...over,
+});
+
+const photoRow = (over = {}) => ({
+  id: 'p1',
+  job_id: 'j1',
+  kind: 'plate',
+  caption: '',
+  bytes: 1234,
+  content_type: 'image/jpeg',
+  storage_path: 'user-9/j1/p1.jpg',
+  taken_at: '2026-09-01T01:00:00.000Z',
+  server_updated_at: '2026-09-04T10:00:00.000Z',
+  deleted_at: null,
+  ...over,
+});
+
+function fakePhotoRemote({ rows = [], failOn = [], blobFor } = {}) {
+  const order = [];
+  return {
+    order,
+    uploaded: [],
+    async uploadPhoto(p) {
+      if (failOn.includes(p.id)) throw new Error(`refused ${p.id}`);
+      order.push(`upload:${p.id}`);
+      this.uploaded.push(p.id);
+      return photoRow({ id: p.id, job_id: p.jobId, storage_path: `user-9/${p.jobId}/${p.id}.jpg` });
+    },
+    async downloadPhoto(path) {
+      order.push(`download:${path}`);
+      return blobFor ?? { size: 999, type: 'image/jpeg', fetched: true };
+    },
+    async fetchPhotosSince(cursor) {
+      order.push('fetch');
+      if (!cursor) return rows;
+      return rows.filter((r) => Date.parse(r.server_updated_at) > Date.parse(cursor));
+    },
+  };
+}
+
+describe('pushing photos', () => {
+  it('uploads the queue and records where each one landed', async () => {
+    const local = fakeLocal([], null, [photo({ id: 'p1' }), photo({ id: 'p2' })]);
+    const remote = fakePhotoRemote();
+
+    const result = await pushPhotos(remote, local);
+
+    expect(result.sent).toBe(2);
+    expect(local.photoStore.get('p1').uploaded).toBe(true);
+    expect(local.photoStore.get('p1').storagePath).toBe('user-9/j1/p1.jpg');
+  });
+
+  it('skips one that will not upload and keeps going', async () => {
+    // A single corrupt image must not silently stop the whole logbook backing
+    // up behind it.
+    const local = fakeLocal([], null, [photo({ id: 'p1' }), photo({ id: 'bad' }), photo({ id: 'p3' })]);
+    const remote = fakePhotoRemote({ failOn: ['bad'] });
+
+    const result = await pushPhotos(remote, local);
+
+    expect(result.sent).toBe(2);
+    expect(result.failed).toBe(1);
+    expect(local.photoStore.get('bad').uploaded).toBe(false);
+    expect(local.photoStore.get('p3').uploaded).toBe(true);
+  });
+
+  it('leaves an already uploaded photo alone', async () => {
+    const local = fakeLocal([], null, [photo({ uploaded: true, storagePath: 'user-9/j1/p1.jpg' })]);
+    const remote = fakePhotoRemote();
+    expect((await pushPhotos(remote, local)).sent).toBe(0);
+    expect(remote.uploaded).toEqual([]);
+  });
+
+  it('does not try to upload a tombstone whose image is gone', async () => {
+    const local = fakeLocal([], null, [photo({ blob: null, deletedAt: '2026-09-04T00:00:00.000Z' })]);
+    expect((await pushPhotos(fakePhotoRemote(), local)).sent).toBe(0);
+  });
+});
+
+describe('pulling photos', () => {
+  it('never replaces an image this device is still holding', async () => {
+    // The row comes down without bytes, by design. On the phone that took the
+    // photo, writing that null over the blob would destroy the only copy in
+    // existence if it had not uploaded yet.
+    const mine = { size: 4321, type: 'image/jpeg', original: true };
+    const local = fakeLocal([], null, [photo({ blob: mine, uploaded: false })]);
+
+    await pullPhotos(fakePhotoRemote({ rows: [photoRow()] }), local);
+
+    expect(local.photoStore.get('p1').blob).toBe(mine);
+  });
+
+  it('records a photo it has never held, without an image', async () => {
+    const local = fakeLocal([], null, []);
+    const result = await pullPhotos(fakePhotoRemote({ rows: [photoRow()] }), local);
+
+    expect(result.applied).toBe(1);
+    expect(local.photoStore.get('p1').blob).toBe(null);
+    expect(local.photoStore.get('p1').storagePath).toBe('user-9/j1/p1.jpg');
+  });
+
+  it('does not fetch back the rows it just sent', async () => {
+    const local = fakeLocal([], null, [photo()]);
+    const remote = fakePhotoRemote({ rows: [photoRow()] });
+
+    await pushPhotos(remote, local);
+    const pulled = await pullPhotos(remote, local);
+
+    expect(pulled.echoed).toBe(1);
+    expect(pulled.applied).toBe(0);
+  });
+});
+
+describe('fetching an image on demand', () => {
+  it('downloads one this device never had, and keeps it', async () => {
+    const local = fakeLocal([], null, [photo({ blob: null, storagePath: 'user-9/j1/p1.jpg', uploaded: true })]);
+    const remote = fakePhotoRemote();
+
+    const blob = await ensurePhotoBlob(await local.getPhoto('p1'), remote, local);
+
+    expect(blob.fetched).toBe(true);
+    expect(local.photoStore.get('p1').blob.fetched).toBe(true);
+    expect(remote.order).toContain('download:user-9/j1/p1.jpg');
+  });
+
+  it('does not go to the network for one it already holds', async () => {
+    const remote = fakePhotoRemote();
+    const held = { size: 10, type: 'image/jpeg' };
+    const local = fakeLocal([], null, [photo({ blob: held })]);
+
+    expect(await ensurePhotoBlob(await local.getPhoto('p1'), remote, local)).toEqual(held);
+    expect(remote.order).toEqual([]);
+  });
+
+  it('says nothing rather than throwing when there is nowhere to fetch from', async () => {
+    const local = fakeLocal([], null, [photo({ blob: null, storagePath: null })]);
+    expect(await ensurePhotoBlob(await local.getPhoto('p1'), fakePhotoRemote(), local)).toBe(null);
   });
 });

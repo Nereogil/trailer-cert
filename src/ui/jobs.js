@@ -5,6 +5,9 @@ import { annotatePlate } from '../vision.js';
 import { capturePhoto, downloadBlob, photoFilename, formatBytes } from '../photos.js';
 import * as db from '../db.js';
 import * as settings from '../settings.js';
+import * as supabase from '../supabase.js';
+import { ensurePhotoBlob } from '../sync.js';
+import { photosRemote } from '../remote.js';
 
 let container = null;
 let context = null;
@@ -540,21 +543,39 @@ async function photoCard(job) {
   const drawThumbs = (list) => {
     clear(grid);
     for (const photo of list) {
-      grid.append(
-        el('div', { class: 'thumb' }, [
-          el('img', {
+      // A photo taken on the other device arrives as a row with no image. The
+      // bytes are on the server and get fetched below; until then the slot is
+      // held rather than left as a broken picture.
+      const face = photo.blob
+        ? el('img', {
             src: objectUrl(photo.blob),
             alt: photo.caption || photo.kind,
             loading: 'lazy',
             onClick: () => window.open(objectUrl(photo.blob), '_blank'),
-          }),
-          el('span', { class: 'kind', text: photo.kind }),
-        ])
-      );
+          })
+        : el('div', {
+            class: 'thumb-pending',
+            text: photo.storagePath ? 'Loading…' : 'Not uploaded',
+          });
+
+      grid.append(el('div', { class: 'thumb' }, [face, el('span', { class: 'kind', text: photo.kind })]));
     }
   };
 
   drawThumbs(photos);
+
+  // Fetch what this device does not hold, after the card is already on screen.
+  // Drawing first and filling in second means opening a job is instant on the
+  // laptop instead of waiting on however many megabytes of photos.
+  const missing = photos.filter((p) => !p.blob && p.storagePath);
+  if (missing.length && supabase.isSignedIn()) {
+    Promise.allSettled(missing.map((p) => ensurePhotoBlob(p, photosRemote)))
+      .then(async () => {
+        const fresh = (await db.photosFor(job.id)).sort((a, b) => (a.takenAt < b.takenAt ? -1 : 1));
+        drawThumbs(fresh);
+      })
+      .catch((err) => console.error('Could not fetch photos for this job', err));
+  }
 
   const makeCapture = (kind, label) =>
     photoInput({
@@ -593,6 +614,10 @@ async function photoCard(job) {
             const list = await db.photosFor(job.id);
             const counters = {};
             for (const photo of list) {
+              // A row whose image is still only on the server has nothing to
+              // hand over; exporting it would save a zero byte file that looks
+              // like a photo until someone opens it.
+              if (!photo.blob) continue;
               counters[photo.kind] = (counters[photo.kind] ?? 0) + 1;
               downloadBlob(photo.blob, photoFilename(job.vin, photo.kind, counters[photo.kind]));
               // Chrome throttles a burst of downloads; a small gap keeps them all.
