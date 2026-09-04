@@ -62,6 +62,7 @@ export async function pullJobs(remote, local = realDb) {
 
   let applied = 0;
   let keptLocal = 0;
+  let echoed = 0;
   let newest = cursor;
 
   for (const row of rows) {
@@ -71,6 +72,18 @@ export async function pullJobs(remote, local = realDb) {
     if (time(row.server_updated_at) > time(newest)) newest = row.server_updated_at;
 
     const localJob = await local.getJob(row.id);
+
+    // A row this device sent moments ago, coming straight back. The push
+    // already recorded the stamp the server gave it, so an identical stamp
+    // means this is our own write returning - there is nothing to learn from
+    // it, and rewriting the local copy would put real data through a needless
+    // round trip. It matters most on a first sync, where the whole logbook goes
+    // up and would otherwise all come back down again.
+    if (localJob?.syncedAt && localJob.syncedAt === row.server_updated_at) {
+      echoed++;
+      continue;
+    }
+
     if (!serverWins(localJob, row)) {
       keptLocal++;
       continue;
@@ -82,5 +95,5 @@ export async function pullJobs(remote, local = realDb) {
 
   if (newest && newest !== cursor) await local.setSyncState(JOBS_CURSOR, newest);
 
-  return { applied, keptLocal, cursor: newest };
+  return { applied, keptLocal, echoed, cursor: newest };
 }

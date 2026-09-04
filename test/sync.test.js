@@ -204,6 +204,56 @@ describe('pulling', () => {
   });
 });
 
+describe('a first sync, where the whole logbook goes up at once', () => {
+  it('does not bring its own writes back down again', async () => {
+    // Push sends everything, then the pull finds those same rows waiting. Left
+    // alone it would rewrite every job on the device from a row it had just
+    // sent - real data through a pointless round trip, on the one sync where
+    // there is most of it to lose.
+    const local = fakeLocal([
+      job({ id: 'j1', dirty: true }),
+      job({ id: 'j2', dirty: true }),
+      job({ id: 'j3', dirty: true }),
+    ]);
+    const remote = fakeRemote({ rows: [] });
+
+    const { pulled } = await syncJobs(remote, local);
+
+    expect(pulled.echoed).toBe(3);
+    expect(pulled.applied).toBe(0);
+  });
+
+  it('still leaves every job present, clean and stamped', async () => {
+    const local = fakeLocal([job({ id: 'j1', dirty: true }), job({ id: 'j2', dirty: true })]);
+    await syncJobs(fakeRemote({ rows: [] }), local);
+
+    for (const id of ['j1', 'j2']) {
+      expect(local.store.get(id).dirty).toBe(false);
+      expect(local.store.get(id).syncedAt).toBe('2026-09-04T10:00:00.000Z');
+      expect(local.store.get(id).vin).toBe('R33PD1347TA900017');
+    }
+    expect(local.sync.get('jobs')).toBe('2026-09-04T10:00:00.000Z');
+  });
+
+  it('still takes a genuinely newer row from the other device', async () => {
+    // The echo check keys on the exact stamp, so it must not swallow a real
+    // update that happens to concern a row this device also sent.
+    const local = fakeLocal([job({ id: 'j1', dirty: true })]);
+    const remote = fakeRemote({ rows: [] });
+    await syncJobs(remote, local);
+
+    remote.table.set('j1', serverRow({
+      id: 'j1', vin: 'OTHERDEVICE123456',
+      updated_at: '2026-09-09T00:00:00.000Z',
+      server_updated_at: '2026-09-09T00:00:01.000Z',
+    }));
+
+    const pulled = await pullJobs(remote, local);
+    expect(pulled.applied).toBe(1);
+    expect(local.store.get('j1').vin).toBe('OTHERDEVICE123456');
+  });
+});
+
 describe('a full cycle', () => {
   it('pushes before it pulls', async () => {
     // The other order overwrites an unsent local edit with an older server copy
